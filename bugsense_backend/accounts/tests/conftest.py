@@ -8,10 +8,10 @@ def api_client():
 
 @pytest.fixture
 def role(db):
-    return Role.objects.create(name="Developer")
+    return Role.objects.create(name="developer")
 
 @pytest.fixture
-def user(role):
+def user(db, role):
     return User.objects.create_user(
         username="testuser",
         email="test@gmail.com",
