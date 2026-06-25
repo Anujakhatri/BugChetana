@@ -58,7 +58,7 @@ class LoginSerializer(TokenObtainPairSerializer):
 
     def validate(self, data):
         validated_data = super().validate(data)
-        refresh_token = validated_data('refresh')
+        refresh_token = validated_data['refresh']
 
         # refresh token lai hash garera save garcha
         token_hash = hashlib.sha256(refresh_token.encode('utf-8')).hexdigest()
