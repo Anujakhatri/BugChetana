@@ -1,9 +1,10 @@
 import hashlib
+from typing import ClassVar, Tuple, Type
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -52,7 +53,7 @@ class RegisterView(APIView):
 
 
 class LoginView(TokenObtainPairView):
-    permission_classes = (AllowAny,)
+    permission_classes: ClassVar[Tuple[Type[BasePermission], ...]] = (AllowAny,)
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
