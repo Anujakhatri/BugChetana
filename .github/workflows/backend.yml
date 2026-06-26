@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: "3.13"
           cache: "pip"
-          cache-dependency-path: bugsense-backend/requirements*.txt
+          cache-dependency-path: bugsense-backend/requirements.txt
 
       - name: Install dependencies
         run: |
