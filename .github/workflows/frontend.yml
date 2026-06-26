@@ -1,13 +1,13 @@
 name: frontend CI
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
   push:
     paths:
       - "bugsense-frontend/**"
     branches:
-      - main
-      - frontend-ui
+#      - main
+#      - frontend-ui
       - github-workflow
 
   pull_request:
