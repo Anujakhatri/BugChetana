@@ -8,34 +8,36 @@ from django.utils import timezone
 from datetime import timedelta
 from .models import UserSession
 
+
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True,min_length=8)
-    password2 = serializers.CharField(write_only=True,min_length=8)
+    password = serializers.CharField(write_only=True, min_length=8)
+    password2 = serializers.CharField(write_only=True, min_length=8)
     role_id = serializers.IntegerField(write_only=True)
 
     class Meta:
         model = User
-        fields = ('username', 'email','name', 'password', 'password2', 'role_id')
+        fields = ('username', 'email', 'name', 'password', 'password2', 'role_id')
 
     def validate(self, data):
         if data['password'] != data['password2']:
-            raise serializers.ValidationError({"password": "Password don't match"})
+            raise serializers.ValidationError(
+                {"password": "Password don't match"})
 
-        # Role exist garcha ki gardaina check
+        # Check if role exists
         try:
             Role.objects.get(id=data['role_id'])
         except Role.DoesNotExist:
-            raise serializers.ValidationError({"role_id": "Role does not exist"})
+            raise serializers.ValidationError(
+                {"role_id": "Role does not exist"})
 
         return data
-
 
     def create(self, validated_data):
         validated_data.pop('password2')
         role_id = validated_data.pop('role_id')
         role = Role.objects.get(id=role_id)
 
-        user=User.objects.create_user(
+        user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
             name=validated_data['name'],
@@ -44,12 +46,13 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         return user
 
+
 class LoginSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
 
-        #jwt token ma extra claims add garcha
+        # Add extra claims to JWT token
         token['email'] = user.email
         token['username'] = user.username
         token['role_id'] = user.role_id
@@ -60,7 +63,7 @@ class LoginSerializer(TokenObtainPairSerializer):
         validated_data = super().validate(data)
         refresh_token = validated_data['refresh']
 
-        # refresh token lai hash garera save garcha
+        # Hash the refresh token and save to session
         token_hash = hashlib.sha256(refresh_token.encode('utf-8')).hexdigest()
 
         UserSession.objects.create(
@@ -70,29 +73,33 @@ class LoginSerializer(TokenObtainPairSerializer):
         )
         return validated_data
 
+
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
     def validate(self, data):
-        self.token=data['refresh']
+        self.token = data['refresh']
         return data
 
     def save(self):
         try:
             token_hash = hashlib.sha256(self.token.encode('utf-8')).hexdigest()
 
-            # session delete garcha
+            # Delete session
             UserSession.objects.filter(refresh_token_hash=token_hash).delete()
-            
-            #jwt blacklist garcha
+
+            # Blacklist the JWT
             RefreshToken(self.token).blacklist()
 
         except TokenError:
-            raise serializers.ValidationError({"refresh":"Refresh token is invalid or expired"})
+            raise serializers.ValidationError(
+                {"refresh": "Refresh token is invalid or expired"})
+
 
 class ProfileSerializer(serializers.ModelSerializer):
     role = serializers.StringRelatedField()
+
     class Meta:
         model = User
-        fields = ('id','username', 'email', 'name', 'role', 'created_at')
-        read_only_fields = fields  #get only edit garna mildaina
+        fields = ('id', 'username', 'email', 'name', 'role', 'created_at')
+        read_only_fields = fields  # read only, cannot edit
