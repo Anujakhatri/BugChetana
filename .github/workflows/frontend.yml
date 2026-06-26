@@ -1,0 +1,47 @@
+name: frontend CI
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "bugsense-frontend/**"
+    branches:
+      - main
+      - frontend-ui
+      - github-workflow
+
+  pull_request:
+    paths:
+      - "bugsense-frontend/**"
+
+defaults:
+  run:
+    working-directory: bugsense-frontend
+
+jobs:
+  ci:
+    name: Install, Lint & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "bugsense-frontend/package-lock.json"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Success
+        run: echo "frontend ci passed successfully!"
