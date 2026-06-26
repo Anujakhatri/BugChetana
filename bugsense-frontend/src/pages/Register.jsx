@@ -39,7 +39,7 @@ export default function Register() {
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="John Doe"
+            placeholder="Enter your name"
             required
           />
 
