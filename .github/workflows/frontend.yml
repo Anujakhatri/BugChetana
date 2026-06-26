@@ -27,6 +27,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "bugsense-frontend/package-lock.json"
+
       - name: Install dependencies
         run: npm ci
 
@@ -43,4 +50,4 @@ jobs:
         run: npm run build
 
       - name: Success
-        run: echo "frontend ci passed successfully!
+        run: echo "frontend ci passed successfully!"
