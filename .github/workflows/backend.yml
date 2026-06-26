@@ -20,7 +20,7 @@ defaults:
 
 jobs:
   ci:
-    name: Lint, Type-check & Test
+    name: Type-check & Test
     runs-on: ubuntu-latest
 
     steps:
