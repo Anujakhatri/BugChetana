@@ -6,8 +6,8 @@ on:
     paths:
       - "bugsense-backend/**"
     branches:
-#      - main
-#      - system-in-backend
+      - main
+      - system-in-backend
       - github-workflow
 
   pull_request:
