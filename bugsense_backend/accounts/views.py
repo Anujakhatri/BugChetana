@@ -52,7 +52,7 @@ class RegisterView(APIView):
 
 
 class LoginView(TokenObtainPairView):
-    permission_classes = (AllowAny,)
+    # permission_classes = (AllowAny,)
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
