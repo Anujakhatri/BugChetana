@@ -1,6 +1,7 @@
 name: frontend CI
 
 on:
+  workflow_dispatch: 
   push:
     paths:
       - "bugsense-frontend/**"
