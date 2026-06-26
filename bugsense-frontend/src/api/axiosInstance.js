@@ -21,7 +21,7 @@ api.interceptors.response.use(
       if (refresh) {
         try {
           const { data } = await axios.post(
-            "http://localhost:8000/api/auth/token/refresh/",
+            "http://localhost:8000/api/token/refresh/",
             { refresh }
           );
           localStorage.setItem("access", data.access);
@@ -36,3 +36,5 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export default api;
