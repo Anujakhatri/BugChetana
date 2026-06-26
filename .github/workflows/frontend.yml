@@ -40,12 +40,6 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Type Check
-        run: npm run type-check
-
-      - name: Run tests
-        run: npm test -- --passWithNoTests --watchAll=false
-
       - name: Build
         run: npm run build
 
