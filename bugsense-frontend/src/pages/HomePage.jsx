@@ -4,7 +4,7 @@ import {
   Bug, Zap, Flame, Users,
   ArrowRight, ShieldCheck, Database, GitPullRequest
 } from 'lucide-react';
-import { FeatureCard } from '@/components/shared/core-features.jsx';
+import { FeatureCard } from '@/components/shared/CoreFeatures.jsx';
 
 // Custom SVG Icons for brands (since lucide-react removed them)
 const GithubIcon = ({ className }) => (

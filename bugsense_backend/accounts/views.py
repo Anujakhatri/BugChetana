@@ -71,6 +71,12 @@ class LoginView(TokenObtainPairView):
         )
         return Response({
             "message": "Login successful",
+            "user": {
+                "username": user.username,
+                "email": user.email,
+                "name": user.name,
+                "role": user.role.name if user.role else None
+            },
             "tokens": response.data
         }, status=status.HTTP_200_OK)
 
