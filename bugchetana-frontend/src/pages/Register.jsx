@@ -68,7 +68,7 @@ export default function Register() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 py-12">
       <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-sm p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">BugSense</h1>
+          <h1 className="text-2xl font-bold text-gray-900">bugchetana</h1>
           <p className="text-sm text-gray-500 mt-2">Create an account to get started.</p>
         </div>
 
