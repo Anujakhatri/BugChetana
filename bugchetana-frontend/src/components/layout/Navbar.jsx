@@ -58,7 +58,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           <button onClick={handleLogoClick} className="flex items-center space-x-2 focus:outline-none">
             <Bug className="h-6 w-6 text-blue-600" />
-            <span className="font-bold text-xl tracking-tight text-slate-900">BugSense</span>
+            <span className="font-bold text-xl tracking-tight text-slate-900">BugChetana</span>
           </button>
 
           {/* Desktop Nav */}
