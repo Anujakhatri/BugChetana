@@ -12,7 +12,7 @@ from .models import UserSession
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     password2 = serializers.CharField(write_only=True, min_length=8)
-    role_id = serializers.IntegerField(write_only=True)
+    role_id = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = User
@@ -24,18 +24,19 @@ class RegisterSerializer(serializers.ModelSerializer):
                 {"password": "Password don't match"})
 
         # Check if role exists
-        try:
-            Role.objects.get(id=data['role_id'])
-        except Role.DoesNotExist:
-            raise serializers.ValidationError(
-                {"role_id": "Role does not exist"})
+        if 'role_id' in data:
+            try:
+                Role.objects.get(id=data['role_id'])
+            except Role.DoesNotExist:
+                raise serializers.ValidationError(
+                    {"role_id": "Role does not exist"})
 
         return data
 
     def create(self, validated_data):
         validated_data.pop('password2')
-        role_id = validated_data.pop('role_id')
-        role = Role.objects.get(id=role_id)
+        role_id = validated_data.pop('role_id', None)
+        role = Role.objects.get(id=role_id) if role_id else None
 
         user = User.objects.create_user(
             username=validated_data['username'],

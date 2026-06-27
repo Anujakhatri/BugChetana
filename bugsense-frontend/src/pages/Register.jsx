@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
+import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from 'lucide-react';
 import InputField from '@/components/shared/InputField.jsx';
 import OAuthButtons from '@/components/shared/OAuthButtons.jsx';
+import { registerUser } from "@/api/authService.js";
 
 export default function Register() {
+  //added variable required to backend
+  const navigate = useNavigate();
+  const [error, setError] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -11,9 +17,42 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Register attempt:', { fullName, email, password, confirmPassword, agreeTerms });
+    //Step 1: Frontend validation check before sent to backend
+    if (!agreeTerms) {
+      setError("Please agree to the Terms of Service and Privacy Policy.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords don not match.");
+      return;       //api call hudaina
+    }
+
+    try {
+      // Step 2: Backend ma POST
+      await registerUser({
+        name: fullName,
+        email: email,
+        username: email.split('@')[0],
+        password: password,
+        password2: confirmPassword
+      });
+      // Step 3: Register complete, redirect to login page
+      navigate("/login");
+    } catch (err) {
+      const data = err.response?.data;
+      if (data && typeof data === "object" && !Array.isArray(data)) {
+        // DRF le { email: ["already exists"] } format ma pathaucha
+        const firstError = Object.values(data)[0];
+        setError(Array.isArray(firstError) ? firstError[0] : firstError);
+      } else if (typeof data === "string" && data.toLowerCase().includes("<html")) {
+        console.error("Server Error:", data);
+        setError("An unexpected server error occurred. Please try again later.");
+      } else {
+        setError(typeof data === "string" ? data : "Registration failed.");
+      }
+    }
   };
 
   const getPasswordStrength = (pass) => {
@@ -34,7 +73,7 @@ export default function Register() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <InputField 
+          <InputField
             label="Full Name"
             type="text"
             value={fullName}
@@ -43,7 +82,7 @@ export default function Register() {
             required
           />
 
-          <InputField 
+          <InputField
             label="Email"
             type="email"
             value={email}
@@ -53,7 +92,7 @@ export default function Register() {
           />
 
           <div className="space-y-1">
-            <InputField 
+            <InputField
               label="Password"
               type={showPassword ? "text" : "password"}
               value={password}
@@ -61,7 +100,7 @@ export default function Register() {
               placeholder="Create a password"
               required
               rightElement={
-                <button 
+                <button
                   type="button"
                   className="text-gray-400 hover:text-gray-600 focus:outline-none"
                   onClick={() => setShowPassword(!showPassword)}
@@ -82,7 +121,7 @@ export default function Register() {
             )}
           </div>
 
-          <InputField 
+          <InputField
             label="Confirm Password"
             type={showPassword ? "text" : "password"}
             value={confirmPassword}
@@ -92,11 +131,11 @@ export default function Register() {
           />
 
           <label className="flex items-start gap-2 cursor-pointer mt-4">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               checked={agreeTerms}
               onChange={(e) => setAgreeTerms(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 shrink-0" 
+              className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 shrink-0"
               required
             />
             <span className="text-sm text-gray-600">
@@ -104,7 +143,11 @@ export default function Register() {
             </span>
           </label>
 
-          <button 
+          {/* error message */}
+          {error && (
+            <p className="text-sm text-red-500 text-center">{error}</p>
+          )}
+          <button
             type="submit"
             className="w-full h-11 mt-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
           >

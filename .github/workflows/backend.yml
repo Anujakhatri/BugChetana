@@ -44,6 +44,8 @@ jobs:
         run: mypy . --ignore-missing-imports
 
       - name: Run tests with pytest
+        env:
+          SECRET_KEY: "ci-test-secret-key-not-for-production"
         run: |
           pytest --tb=short --cov=. --cov-report=term-missing
 
