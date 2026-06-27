@@ -9,6 +9,7 @@ on:
       - main
       - frontend-ui
       - github-workflow
+      - integration
 
   pull_request:
     paths:
