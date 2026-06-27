@@ -1,8 +1,8 @@
-# BugSense 🐞
+# bugchetana 🐞
 **AI-Powered Bug Prediction with Roast Mode**
 
 <p align="center">
-  <img src="bugsense.png" alt="BugSense Logo" width="300" />
+  <img src="bugchetana.png" alt="bugchetana Logo" width="300" />
 </p>
 
 ## 📌 What is this project?
@@ -21,7 +21,7 @@ An AI-powered platform that predicts where bugs are likely to occur in software 
 ---
 
 ## ⚙️ How It Works
-BugSense takes two main inputs:
+bugchetana takes two main inputs:
 1. **A bug report or code snippet:** When submitted, the ML model classifies it by **Severity** (critical/high/medium/low) and **Bug Type** (authentication failure, runtime error, etc.).
 2. **Historical release data:** The system tracks bugs linked to a version and computes a quality score. If a release has too many high-severity bugs, it gets flagged.
 
@@ -74,7 +74,7 @@ React Dashboard
 
 ## 🔐 Authentication & RBAC
 
-BugSense supports **Email + Password**, **GitHub OAuth**, and **Google OAuth** (all returning a JWT).
+bugchetana supports **Email + Password**, **GitHub OAuth**, and **Google OAuth** (all returning a JWT).
 
 By default, every new user is assigned the `developer` role.
 
