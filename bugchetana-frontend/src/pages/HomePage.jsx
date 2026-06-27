@@ -35,7 +35,7 @@ export default function HomePage() {
         </h1>
 
         <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl leading-relaxed">
-          BugSense uses AI to predict, classify, and route incoming bugs directly to your Developers, QA engineers, and Release Managers.
+          BugChetena uses AI to predict, classify, and route incoming bugs directly to your Developers, QA engineers, and Release Managers.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
@@ -140,7 +140,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Submit or Import</h3>
               <p className="text-slate-600">
-                Manually submit bugs or let BugSense auto-import your issues.
+                Manually submit bugs or let BugChetena auto-import your issues.
               </p>
             </div>
 
@@ -168,7 +168,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3">
             <Bug className="h-6 w-6 text-blue-400" />
-            <span className="text-white font-bold text-lg">BugSense</span>
+            <span className="text-white font-bold text-lg">BugChetena</span>
             <span className="text-slate-500 hidden sm:inline">|</span>
             <span className="text-slate-400 text-sm">Built by Anu</span>
           </div>

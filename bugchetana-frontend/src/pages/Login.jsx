@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import {useNavigate} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from 'lucide-react';
 import InputField from '@/components/shared/InputField.jsx';
 import OAuthButtons from '@/components/shared/OAuthButtons.jsx';
-import {loginUser} from "@/api/authService.js";
-import {useAuth} from "@/context/AuthContext.jsx";
+import { loginUser } from "@/api/authService.js";
+import { useAuth } from "@/context/AuthContext.jsx";
 
 export default function Login() {
   // backend connection ko lagi chaini
@@ -19,10 +19,10 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    {/* ui ma actual backend ko data lyaune */}
-    try{
+    {/* ui ma actual backend ko data lyaune */ }
+    try {
       // Step 1: Backend ma POST request
-      const { data } = await loginUser({email, password});
+      const { data } = await loginUser({ email, password });
       //Step 2: Backend le diyeko tokens save garcha
       localStorage.setItem("access", data.tokens.access);
       localStorage.setItem("refresh", data.tokens.refresh);
@@ -45,12 +45,12 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-sm p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">BugSense</h1>
+          <h1 className="text-2xl font-bold text-gray-900">BugChetena</h1>
           <p className="text-sm text-gray-500 mt-2">Welcome back! Please enter your details.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <InputField 
+          <InputField
             label="Email"
             type="email"
             value={email}
@@ -59,7 +59,7 @@ export default function Login() {
             required
           />
 
-          <InputField 
+          <InputField
             label="Password"
             type={showPassword ? "text" : "password"}
             value={password}
@@ -67,7 +67,7 @@ export default function Login() {
             placeholder="Enter your password"
             required
             rightElement={
-              <button 
+              <button
                 type="button"
                 className="text-gray-400 hover:text-gray-600 focus:outline-none"
                 onClick={() => setShowPassword(!showPassword)}
@@ -79,11 +79,11 @@ export default function Login() {
 
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" 
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
               />
               <span className="text-sm text-gray-600">Remember me</span>
             </label>
@@ -94,10 +94,10 @@ export default function Login() {
 
           {/* error message */}
           {error && (
-              <p className="text-sm text-red-500 text-center">{error}</p>
+            <p className="text-sm text-red-500 text-center">{error}</p>
           )}
 
-          <button 
+          <button
             type="submit"
             className="w-full h-11 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
           >
