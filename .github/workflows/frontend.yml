@@ -10,6 +10,7 @@ on:
       - frontend-ui
       - github-workflow
       - integration
+      - frontend-ui
 
   pull_request:
     paths:
