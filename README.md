@@ -1,4 +1,4 @@
-# bugchetana 🐞
+# BugChetana 🐞
 **AI-Powered Bug Prediction with Roast Mode**
 
 <p align="center">
@@ -21,7 +21,7 @@ An AI-powered platform that predicts where bugs are likely to occur in software 
 ---
 
 ## ⚙️ How It Works
-bugchetana takes two main inputs:
+BugChetana takes two main inputs:
 1. **A bug report or code snippet:** When submitted, the ML model classifies it by **Severity** (critical/high/medium/low) and **Bug Type** (authentication failure, runtime error, etc.).
 2. **Historical release data:** The system tracks bugs linked to a version and computes a quality score. If a release has too many high-severity bugs, it gets flagged.
 
@@ -74,7 +74,7 @@ React Dashboard
 
 ## 🔐 Authentication & RBAC
 
-bugchetana supports **Email + Password**, **GitHub OAuth**, and **Google OAuth** (all returning a JWT).
+BugChetana supports **Email + Password**, **GitHub OAuth**, and **Google OAuth** (all returning a JWT).
 
 By default, every new user is assigned the `developer` role.
 
