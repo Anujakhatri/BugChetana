@@ -1,9 +1,8 @@
 from django.db import models
 from accounts.models import User
 
-# Create your models here.
 class Project(models.Model):
-    name=models.CharField(max_length=200)
+    name = models.CharField(max_length=200)
     release_manager = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -19,6 +18,7 @@ class Project(models.Model):
     class Meta:
         db_table = 'projects'
 
+
 class ProjectMember(models.Model):
     project = models.ForeignKey(
         Project,
@@ -32,10 +32,9 @@ class ProjectMember(models.Model):
     )
     joined_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        db_table = 'project_members'
-        unique_together = (('project', 'user'),)
-
     def __str__(self):
         return f"{self.user.email} -> {self.project.name}"
 
+    class Meta:
+        db_table = 'project_members'
+        unique_together = (('project', 'user'),) 

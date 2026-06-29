@@ -1,6 +1,6 @@
 import hashlib
 from urllib.request import Request
-
+from .permissions import IsAdmin
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework import status, generics
@@ -20,18 +20,6 @@ User = get_user_model()
 #token hash garna
 def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode('utf-8')).hexdigest()
-
-#permission release manager only
-class IsReleaseManager(IsAuthenticated):
-    message= "Only release managers can perform this action."
-
-    def has_permission(self, request, view):
-        if not super().has_permission(request, view):
-            return False
-        return(
-            request.user.role and
-            request.user.role.name == 'release_manager'
-        )
 
 class RegisterView(APIView):
     permission_classes = (AllowAny,)
@@ -124,7 +112,7 @@ class ProfileView(APIView):
 
 #Role update by release manager only
 class RoleUpdateView(APIView):
-    permission_classes = (IsAuthenticated,IsReleaseManager)
+    permission_classes = (IsAuthenticated,IsAdmin)
 
     def patch(self, request, pk):
         try:
@@ -147,10 +135,10 @@ class RoleUpdateView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-
+#admin and release manager can see everyone
 class UserListView(generics.ListAPIView):
     serializer_class = UserListSerializer
-    permission_classes = (IsAuthenticated,IsReleaseManager)
+    permission_classes = (IsAuthenticated, IsAdmin)
 
     def get_queryset(self):
         return User.objects.select_related('role').order_by('created_at')

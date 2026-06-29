@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from .models import Project, ProjectMember
-from accounts.models import User
 
 
 class ProjectSerializer(serializers.ModelSerializer):
