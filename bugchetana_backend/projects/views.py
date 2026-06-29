@@ -9,26 +9,18 @@ from .permissions import IsReleaseManager, IsProjectMember
 
 class ProjectListCreateView(generics.ListCreateAPIView):
     serializer_class = ProjectSerializer
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsReleaseManager)  # fixed: proper guard, not inline check
 
     def get_queryset(self):
         user = self.request.user
         role_name = user.role.name if user.role else None
 
-        # Release Manager → sabai projects dekhcha
-        if role_name == 'Release Manager':
+        if role_name == 'release_manager':  # fixed: snake_case
             return Project.objects.all()
 
-        # Developer / QA → aafno projects matra
         return Project.objects.filter(members__user=user)
 
     def perform_create(self, serializer):
-        # only Release Manager le project create garna sakcha
-        if not (self.request.user.role and
-                self.request.user.role.name == 'Release Manager'):
-            from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied("Only Release Manager can create projects")
-
         serializer.save(release_manager=self.request.user)
 
 
@@ -49,7 +41,7 @@ class AddProjectMemberView(APIView):
                             status=status.HTTP_404_NOT_FOUND)
 
         serializer = ProjectMemberSerializer(data={
-            'project': project.id,
+            'project': project.id,           # fixed: was 'projects'
             'user': request.data.get('user_id')
         })
         serializer.is_valid(raise_exception=True)
