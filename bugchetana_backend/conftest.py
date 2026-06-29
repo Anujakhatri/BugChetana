@@ -58,7 +58,7 @@ def user(db, role):
 
 
 @pytest.fixture
-def get_tokens(api_client):   # ← get_token hoina, get_tokens
+def get_tokens(api_client):
     def _get(email, password='testpass123'):
         res = api_client.post(reverse('login'), {
             'email': email,
