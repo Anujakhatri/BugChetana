@@ -1,5 +1,5 @@
 """
-URL configuration for bugchetana_backend project.
+URL configuration for bugchetana_backend projects.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/6.0/topics/http/urls/
@@ -22,5 +22,5 @@ from rest_framework_simplejwt.views import TokenObtainPairView,TokenRefreshView
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include('accounts.urls')),
-    # path("api/", include("projects.urls")),
+    path("api/", include("projects.urls")),
 ]
