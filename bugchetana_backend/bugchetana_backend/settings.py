@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     #custom app
     "accounts",
     "projects",
+    "bugs",
 ]
 
 MIDDLEWARE = [
