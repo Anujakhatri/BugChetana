@@ -18,8 +18,6 @@ from projects.models import Project
 from django.db.models import Q
 from urllib import request
 
-# return qs.filter(Q(created_by=user) | Q(assigned_to=user))
-
 
 # ─── Bug Views ───────────────────────────────────────────────
 class BugListCreateView(generics.ListCreateAPIView):
