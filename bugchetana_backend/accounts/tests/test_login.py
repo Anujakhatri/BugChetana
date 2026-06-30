@@ -23,7 +23,7 @@ class TestLoginView:
             'password': 'testpass123',
         })
         assert res.status_code == 200
-        assert res.data['user']['role'] == 'qa'
+        assert res.data['user']['role'] == 'QA'
         assert 'access' in res.data['tokens']
         assert 'refresh' in res.data['tokens']
 

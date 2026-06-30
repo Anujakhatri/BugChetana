@@ -27,7 +27,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password2')
         try:
-            developer_role = Role.objects.get(name='developer')
+            developer_role = Role.objects.get(name='Developer')
         except Role.DoesNotExist:
             developer_role = None
 

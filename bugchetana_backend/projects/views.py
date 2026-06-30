@@ -15,7 +15,7 @@ class ProjectListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         role_name = user.role.name if user.role else None
 
-        if role_name == 'release_manager':  # fixed: snake_case
+        if role_name == 'Release Manager':  # fixed: Title Case
             return Project.objects.all()
 
         return Project.objects.filter(members__user=user)

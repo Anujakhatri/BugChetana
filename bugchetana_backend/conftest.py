@@ -14,22 +14,22 @@ def api_client():
 
 @pytest.fixture
 def developer_role(db):
-    return Role.objects.get_or_create(name='developer', defaults={'description': 'Developer role'})[0]
+    return Role.objects.get_or_create(name='Developer', defaults={'description': 'Developer role'})[0]
 
 
 @pytest.fixture
 def qa_role(db):
-    return Role.objects.get_or_create(name='qa', defaults={'description': 'QA role'})[0]
+    return Role.objects.get_or_create(name='QA', defaults={'description': 'QA role'})[0]
 
 
 @pytest.fixture
 def rm_role(db):
-    return Role.objects.get_or_create(name='release_manager', defaults={'description': 'Release Manager role'})[0]
+    return Role.objects.get_or_create(name='Release Manager', defaults={'description': 'Release Manager role'})[0]
 
 
 @pytest.fixture
 def role(db):
-    return Role.objects.get_or_create(name="developer")[0]  # get_or_create, duplicate hudaina
+    return Role.objects.get_or_create(name="Developer")[0] 
 
 
 @pytest.fixture

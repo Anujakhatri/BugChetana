@@ -11,7 +11,7 @@ class IsReleaseManager(BasePermission):
         return (
             request.user and request.user.is_authenticated and
             request.user.role is not None and
-            request.user.role.name == 'release_manager'
+            request.user.role.name == 'Release Manager'
         )
 
 
