@@ -19,7 +19,7 @@ class TestProfileView:
         res = api_client.get(reverse('profile'))
         assert res.status_code == 200
         assert res.data['email'] == 'anu@test.com'
-        assert res.data['role'] == 'qa'
+        assert res.data['role'] == 'QA'
 
     #  Unauthenticated user
     def test_profile_unauthenticated(self, api_client):

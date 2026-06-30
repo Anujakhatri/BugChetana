@@ -28,7 +28,7 @@ class TestRegisterView:
             "password2": "Test@1234",
         })
         assert response.status_code == 201
-        assert response.data['user']['role'] == 'developer'
+        assert response.data['user']['role'] == 'Developer'
         assert 'access' in response.data['tokens']
 
     def test_register_cannot_self_assign_role(self, api_client, developer_role, rm_role):
@@ -41,7 +41,7 @@ class TestRegisterView:
             "role_id": rm_role.id
         })
         assert response.status_code == 201
-        assert response.data['user']['role'] == 'developer'
+        assert response.data['user']['role'] == 'Developer'
 
     # Password match bhayena
     def test_register_password_mismatch(self, api_client, role):
@@ -68,7 +68,7 @@ class TestRegisterView:
         })
         # Backend le invalid role_id ignore garcha ra developer assign gardacha
         assert response.status_code == 201
-        assert response.data['user']['role'] == 'developer'
+        assert response.data['user']['role'] == 'Developer'
 
     #  Duplicate email
     def test_register_duplicate_email(self, api_client, user, role):

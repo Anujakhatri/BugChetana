@@ -17,7 +17,7 @@ class TestRoleUpdateView:   # ← class missing थियो!
             {'role_id': qa_role.id},
         )
         assert res.status_code == 200
-        assert res.data['user']['role'] == 'qa'
+        assert res.data['user']['role'] == 'QA'
 
     def test_release_manager_cannot_update_role(self, api_client, make_user, rm_role, qa_role, get_tokens):
         rm_user = make_user('rm', 'rm@test.com', role=rm_role)
