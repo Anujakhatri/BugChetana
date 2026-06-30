@@ -1,3 +1,5 @@
+from urllib import request
+from rest_framework.exceptions import PermissionDenied
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -5,15 +7,21 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from .models import Bug, BugComment, BugHistory, Release, ReleaseBug, QAResult
 from django.db.models import Count
+from rest_framework.exceptions import ValidationError
 from .serializers import (
     BugSerializer, BugCreateSerializer, BugCommentSerializer, BugHistorySerializer,
     ReleaseSerializer, QAResultSerializer
 )
-from .permissions import IsDeveloper, IsQA, IsReleaseManager, IsProjectMember
+from .permissions import IsDeveloper, IsQA, IsReleaseManager, IsProjectMember, is_project_member, \
+    IsBugOwnerOrReleaseManager
+from projects.models import Project
+from django.db.models import Q
+from urllib import request
+
+# return qs.filter(Q(created_by=user) | Q(assigned_to=user))
 
 
 # ─── Bug Views ───────────────────────────────────────────────
-
 class BugListCreateView(generics.ListCreateAPIView):
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -42,35 +50,60 @@ class BugListCreateView(generics.ListCreateAPIView):
         qs = Bug.objects.filter(project_id=project_id)
 
         if role == 'Developer':
-            return qs.filter(assigned_to=user)
-        elif role == 'QA':
-            return qs  # QA le sabai bugs dekhcha project bitra
-        elif role == 'Release Manager':
-            return qs  # RM le sabai dekhcha
+            return qs.filter(Q(created_by=user) | Q(assigned_to=user))
+        elif role in ('QA', 'Release Manager'):
+            return qs  # QA and RM le sabai bugs dekhcha project bitra
+
         return qs.none()
 
     def perform_create(self, serializer):
         self.check_project_membership()
-        user = self.request.user
-
         serializer.save(
-            created_by=user,
+            created_by= self.request.user,
             project_id=self.kwargs['project_id']
         )
 
 
 class BugDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = BugSerializer
-    permission_classes = (IsAuthenticated, IsProjectMember)
+    permission_classes = (IsAuthenticated, IsProjectMember, IsBugOwnerOrReleaseManager)
     queryset = Bug.objects.all()
 
+    DEVELOPER_ALLOWED_FIELDS = {'status', 'description'}
+    QA_ALLOWED_FIELDS = {'assigned_to'}
+    DEVELOPER_BLOCKED_STATUSES = {'closed'}
+
     def perform_update(self, serializer):
+        user = self.request.user
+        bug = self.get_object()
+        role = user.role.name if user.role else None
+        is_own_project_rm = (role == 'Release Manager' and bug.project.release_manager == user)
+        submitted_fields = set(self.request.data.keys())
+
+        if not is_own_project_rm:
+            if role == 'QA':
+                if not submitted_fields.issubset(self.QA_ALLOWED_FIELDS):
+                    raise PermissionDenied(
+                        "QA can only update assigned_to here. Use the QA result endpoint for pass/fail."
+                    )
+            elif user == bug.assigned_to:
+                if not submitted_fields.issubset(self.DEVELOPER_ALLOWED_FIELDS):
+                    raise PermissionDenied(
+                        f"Developers can only update {', '.join(self.DEVELOPER_ALLOWED_FIELDS)} here."
+                    )
+
+                new_status = self.request.data.get('status')
+                if new_status in self.DEVELOPER_BLOCKED_STATUSES:
+                    raise PermissionDenied(
+                        "Developers cannot set status to 'closed' directly. "
+                        "This is set automatically when QA passes the bug."
+                    )
+
         serializer.instance._changed_by = self.request.user
         serializer.save()
 
 
 # ─── Comment Views ───────────────────────────────────────────
-
 class BugCommentListCreateView(generics.ListCreateAPIView):
     serializer_class = BugCommentSerializer
     permission_classes = (IsAuthenticated,)
@@ -86,7 +119,6 @@ class BugCommentListCreateView(generics.ListCreateAPIView):
 
 
 # ─── Bug History View ─────────────────────────────────────────
-
 class BugHistoryListView(generics.ListAPIView):
     serializer_class = BugHistorySerializer
     permission_classes = (IsAuthenticated,)
@@ -98,14 +130,16 @@ class BugHistoryListView(generics.ListAPIView):
 
 
 # ─── QA Result Views ──────────────────────────────────────────
-
 class QAResultCreateView(generics.CreateAPIView):
     serializer_class = QAResultSerializer
     permission_classes = (IsAuthenticated, IsQA)
 
     def perform_create(self, serializer):
-        from rest_framework.exceptions import ValidationError
+
         bug = get_object_or_404(Bug, id=self.kwargs['bug_id'])
+
+        if not is_project_member(self.request.user, bug.project):
+            raise PermissionDenied("You do not a member of this project.")
         
         if bug.status != 'resolved':
             raise ValidationError("Only resolved bugs can be QA tested.")
@@ -126,15 +160,22 @@ class QAResultCreateView(generics.CreateAPIView):
 
 
 # ─── Release Views ────────────────────────────────────────────
-
 class ReleaseListCreateView(generics.ListCreateAPIView):
     serializer_class = ReleaseSerializer
     permission_classes = (IsAuthenticated, IsReleaseManager)
 
+    def check_project_rm(self):
+        project = get_object_or_404(Project, id=self.kwargs['project_id'])
+        if project.release_manager != self.request.user:
+            self.permission_denied(request, message="You do not have permission to perform this action.")
+        return project
+
     def get_queryset(self):
+        self.check_project_rm()
         return Release.objects.filter(project_id=self.kwargs['project_id'])
 
     def perform_create(self, serializer):
+        self.check_project_rm()
         serializer.save(
             created_by=self.request.user,
             project_id=self.kwargs['project_id']
@@ -146,8 +187,18 @@ class AddBugToReleaseView(APIView):
 
     def post(self, request, release_id):
         release = get_object_or_404(Release, id=release_id)
+
+        if release.project.release_manager != request.user:
+            self.permission_denied(request, message="You do not have permission to perform this action.")
+
         bug_id = request.data.get('bug_id')
         bug = get_object_or_404(Bug, id=bug_id)
+
+        if bug.project_id != release.project_id:
+            return Response(
+                {"error": "Bug does not belong to the same project as this release"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if ReleaseBug.objects.filter(release=release, bug=bug).exists():
             return Response(
@@ -163,7 +214,6 @@ class AddBugToReleaseView(APIView):
 
 
 # ─── Dashboard Views ──────────────────────────────────────────
-
 class DashboardSummaryView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -180,6 +230,10 @@ class DashboardSummaryView(APIView):
             self.permission_denied(request, message="You do not have permission to perform this action.")
 
         bugs = Bug.objects.filter(project_id=project_id)
+        role = request.user.role.name if request.user.role else None
+        if role == 'Developer':
+            bugs = bugs.filter(assigned_to=request.user)
+
         severity_breakdown = bugs.values('severity').annotate(count=Count('severity'))
 
         return Response({
