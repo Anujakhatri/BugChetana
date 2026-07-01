@@ -34,7 +34,7 @@ class TestBugComments:
         assert response.status_code == 401
 
     def test_comment_list(self, dev_client, qa_client, bug):
-        # 2 comments add gara
+        # 2 comments add
         dev_client.post(f'/api/bugs/{bug.id}/comments/', {'comment_text': 'Dev comment'})
         qa_client.post(f'/api/bugs/{bug.id}/comments/', {'comment_text': 'QA comment'})
 
