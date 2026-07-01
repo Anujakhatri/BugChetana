@@ -27,10 +27,16 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password2')
         try:
-            developer_role = Role.objects.get(name='Developer')
+            developer_role = Role.objects.get(name__iexact='developer')
         except Role.DoesNotExist:
-            developer_role = None
-
+            raise serializers.ValidationError(
+                {
+                    'role': (
+                        'Default Developer role is not configured in the database. '
+                        'Contact an administrator.'
+                    )
+                }
+            )
 
         user = User.objects.create_user(
             username=validated_data['username'],

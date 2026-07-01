@@ -1,48 +1,19 @@
 from rest_framework.permissions import BasePermission
-from projects.models import ProjectMember
-
-def is_project_release_manager(user, project):
-    return project.release_manager == user
-
-def is_project_member(user, project):
-    return ProjectMember.objects.filter(user=user, project=project).exists()
-
-def get_role(user):
-    return user.role.name if user.role else None
-
-
-class IsDeveloper(BasePermission):
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and get_role(request.user) == 'Developer'
-
-
-class IsQA(BasePermission):
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and get_role(request.user) == 'QA'
-
-
-class IsReleaseManager(BasePermission):
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and get_role(request.user) == 'Release Manager'
-
-
-class IsQAOrDeveloper(BasePermission):
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and get_role(request.user) in ['QA', 'Developer']
-
-
-class IsReleaseManagerOrQA(BasePermission):
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and get_role(request.user) in ['Release Manager', 'QA']
-
+from accounts.permissions import get_role
+from projects.permissions import(
+    is_project_release_manager,
+    is_project_member,
+    can_view_project,
+)
 
 class IsAssignedDeveloper(BasePermission):
     def has_object_permission(self, request, view, obj):
         return request.user.is_authenticated and request.user == obj.assigned_to
 
+class IsBugProjectMember(BasePermission):
+    """Enforces project-scoped access per role (membership or release_manager_id)."""
+    message = "You do not have permission to access this project."
 
-class IsProjectMember(BasePermission):
-    """Bug ko project ma member cha ki chaina check"""
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated)
 
@@ -50,30 +21,137 @@ class IsProjectMember(BasePermission):
         project = getattr(obj, 'project', None)
         if not project:
             return False
-        return ProjectMember.objects.filter(project=project, user=request.user).exists()
+
+        return can_view_project(request.user, project)
 
 class IsBugOwnerOrReleaseManager(BasePermission):
     """
-    DELETE        -> Release Manager of the bug's own project only.
-    PATCH/PUT     -> assigned developer (full), QA (assigned_to field only,
-                      enforced in view), or Release Manager of own project (full).
-    GET           -> handled by IsProjectMember separately.
+    DELETE  -> Release Manager of the bug's own project only.
+    PATCH   -> assigned developer (status/description only, enforced in view),
+               QA (assigned_to only, enforced in view),
+               or Release Manager of own project (full).
+    GET     -> handled by IsProjectMember separately.
     """
+    message = "You do not have permission to modify this bug."
+
     def has_object_permission(self, request, view, obj):
         if not request.user.is_authenticated:
             return False
 
         role = get_role(request.user)
         is_own_projects_rm = (
-                role == 'Release Manager' and obj.project.release_manager == request.user
+            role == 'Release Manager'
+            and is_project_release_manager(request.user, obj.project)
         )
 
         if request.method == 'DELETE':
-            return role == 'Release Manager'
+            return is_own_projects_rm
 
         if request.method in ('PATCH', 'PUT'):
-            is_assigned_dev = request.user == obj.assigned_to
-            is_qa = role == 'QA'
+            is_assigned_dev = (
+                role == 'Developer'
+                and (
+                    request.user == obj.assigned_to
+                    or request.user == obj.created_by
+                )
+            )
+            is_qa = role == 'QA' and is_project_member(request.user, obj.project)
             return is_assigned_dev or is_qa or is_own_projects_rm
-
         return True
+
+
+class HasProjectAccess(BasePermission):
+    """Role-split project access via project_id kwarg on the view."""
+    message = "You do not have permission to access this project."
+
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        project_id = view.kwargs.get('project_id')
+        if not project_id:
+            return False
+        from projects.models import Project
+        try:
+            project = Project.objects.get(pk=project_id)
+        except Project.DoesNotExist:
+            return False
+        return can_view_project(request.user, project)
+
+class HasBugAccess(BasePermission):
+    message = "You do not have permission to access this bug."
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        bug_id = view.kwargs.get('bug_id')
+        if not bug_id:
+            return False
+        from bugs.models import Bug
+        try:
+            bug = Bug.objects.select_related('project').get(pk=bug_id)
+        except Bug.DoesNotExist:
+            return False
+        return can_view_project(request.user, bug.project)
+
+class CanCreateBug(HasProjectAccess):
+    """Only developers who are project members can create bugs."""
+    message = "You do not have permission to create bugs in this project."
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        return get_role(request.user) == 'Developer'
+
+
+class CanSubmitQAResult(BasePermission):
+    """QA members only — project access via project_members, not release_manager_id."""
+    message = "Only QA members of this project can submit QA results."
+
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated or get_role(request.user) != 'QA':
+            return False
+        bug_id = view.kwargs.get('bug_id')
+        if not bug_id:
+            return False
+        from bugs.models import Bug
+        try:
+            bug = Bug.objects.select_related('project').get(pk=bug_id)
+        except Bug.DoesNotExist:
+            return False
+        return is_project_member(request.user, bug.project)
+
+
+class CanManageRelease(BasePermission):
+    """Release Manager of the project identified by project_id kwarg."""
+    message = "Only the release manager of this project can manage releases."
+
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated or get_role(request.user) != 'Release Manager':
+            return False
+        project_id = view.kwargs.get('project_id')
+        if not project_id:
+            return False
+        from projects.models import Project
+        try:
+            project = Project.objects.get(pk=project_id)
+        except Project.DoesNotExist:
+            return False
+        return is_project_release_manager(request.user, project)
+
+
+class CanAddBugToRelease(BasePermission):
+    """Release Manager of the release's project (release_id kwarg)."""
+    message = "Only the release manager of this project can add bugs to a release."
+
+    def has_permission(self, request, view):
+        if (not request.user.is_authenticated or
+                get_role(request.user) != 'Release Manager'):
+            return False
+        release_id = view.kwargs.get('release_id')
+        if not release_id:
+            return False
+        from bugs.models import Release
+        try:
+            release = Release.objects.select_related('project').get(pk=release_id)
+        except Release.DoesNotExist:
+            return False
+        return is_project_release_manager(request.user, release.project)

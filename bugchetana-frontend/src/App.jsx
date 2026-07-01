@@ -5,6 +5,8 @@ import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import ProtectedRoute from "@/components/shared/ProtectedRoute.jsx";
 import Dashboard from './pages/Dashboard.jsx';
+import NewBug from './pages/bugs/NewBug.jsx';
+import { ProjectProvider } from './context/ProjectContext.jsx';
 
 function App() {
   return (
@@ -18,7 +20,16 @@ function App() {
           {/* Protected */}
           <Route path="/dashboard" element={
               <ProtectedRoute>
-                  <Dashboard />
+                  <ProjectProvider>
+                    <Dashboard />
+                  </ProjectProvider>
+              </ProtectedRoute>
+          } />
+          <Route path="/bugs/new" element={
+              <ProtectedRoute>
+                  <ProjectProvider>
+                    <NewBug />
+                  </ProjectProvider>
               </ProtectedRoute>
           } />
         </Route>
