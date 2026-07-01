@@ -4,8 +4,20 @@ import { getProfile, logoutUser } from "../api/authService";
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser]       = useState(null);
+  const [user, setUserRaw] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const setUser = (userData) => {
+    if (!userData) {
+      setUserRaw(null);
+      return;
+    }
+    // The backend sends user.role as a nested object (e.g., { id: 1, name: "Developer" }). We normalize it to a flat string roleName.
+    const rawRole = typeof userData.role === 'object' && userData.role !== null ? userData.role.name : userData.role;
+    const roleName = (rawRole || "").toLowerCase().replace(/\s+/g, '_');
+    
+    setUserRaw({ ...userData, roleName });
+  };
 
   // on refresh, re-fetch user if token exists
   useEffect(() => {
