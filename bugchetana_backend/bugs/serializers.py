@@ -58,7 +58,7 @@ class ReleaseSerializer(serializers.ModelSerializer):
         model = Release
         fields = ('id', 'version', 'title', 'project',
                   'created_by', 'created_by_name', 'bugs', 'released_at')
-        read_only_fields = ('created_by', 'released_at')
+        read_only_fields = ('project', 'created_by', 'released_at')
 
     def get_bugs(self, obj):
         return obj.release_bugs.values_list('bug_id', flat=True)
