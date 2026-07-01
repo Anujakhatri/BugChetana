@@ -3,8 +3,9 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Project, ProjectMember
+from accounts.permissions import IsReleaseManager
 from .serializers import ProjectSerializer, ProjectMemberSerializer
-from .permissions import IsReleaseManager, IsProjectMember
+from .permissions import IsProjectMember, IsOwnProjectReleaseManager
 
 
 class ProjectListCreateView(generics.ListCreateAPIView):
@@ -15,8 +16,8 @@ class ProjectListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         role_name = user.role.name if user.role else None
 
-        if role_name == 'Release Manager':  # fixed: Title Case
-            return Project.objects.all()
+        if role_name == 'Release Manager':
+            return Project.objects.filter(release_manager=user)
 
         return Project.objects.filter(members__user=user)
 
@@ -31,7 +32,7 @@ class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class AddProjectMemberView(APIView):
-    permission_classes = (IsAuthenticated, IsReleaseManager)
+    permission_classes = (IsAuthenticated, IsOwnProjectReleaseManager)
 
     def post(self, request, project_id):
         try:
@@ -41,7 +42,7 @@ class AddProjectMemberView(APIView):
                             status=status.HTTP_404_NOT_FOUND)
 
         serializer = ProjectMemberSerializer(data={
-            'project': project.id,           # fixed: was 'projects'
+            'project': project.id,
             'user': request.data.get('user_id')
         })
         serializer.is_valid(raise_exception=True)
@@ -54,7 +55,7 @@ class AddProjectMemberView(APIView):
 
 
 class RemoveProjectMemberView(APIView):
-    permission_classes = (IsAuthenticated, IsReleaseManager)
+    permission_classes = (IsAuthenticated, IsOwnProjectReleaseManager)
 
     def delete(self, request, project_id, user_id):
         try:
