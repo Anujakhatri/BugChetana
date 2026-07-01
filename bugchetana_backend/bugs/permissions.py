@@ -69,7 +69,7 @@ class IsBugOwnerOrReleaseManager(BasePermission):
         )
 
         if request.method == 'DELETE':
-            return role == 'Release Manager'
+            return is_own_projects_rm
 
         if request.method in ('PATCH', 'PUT'):
             is_assigned_dev = request.user == obj.assigned_to
