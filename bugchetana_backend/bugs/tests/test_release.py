@@ -31,14 +31,14 @@ class TestReleases:
         assert response.status_code == 403
 
     def test_rm_can_add_bug_to_release(self, rm_client, project_with_members, bug):
-        # Release create gara
+        # Release create garne
         release_response = rm_client.post(
             f'/api/projects/{project_with_members.id}/releases/',
             {'version': 'v1.0.0', 'title': 'First Release'}
         )
         release_id = release_response.data['id']
 
-        # Bug add gara release ma
+        # Bug add garne release ma
         response = rm_client.post(
             f'/api/releases/{release_id}/add-bug/',
             {'bug_id': bug.id}

@@ -26,11 +26,11 @@ class TestBugHistory:
         assert history.last().new_status == 'in_progress'
 
     def test_no_history_on_non_status_update(self, dev_client, bug):
-        # Status change nagari title update garda history chainदैन
+        # Status change nagari title update garda history chaidaina
         dev_client.patch(f'/api/bugs/{bug.id}/', {'title': 'Updated Title'})
 
         history = BugHistory.objects.filter(bug=bug)
-        assert history.count() == 1  # sirf initial create ko matra
+        assert history.count() == 1  # only initial create ko matra
 
     def test_history_list_endpoint(self, dev_client, bug):
         response = dev_client.get(f'/api/bugs/{bug.id}/history/')
