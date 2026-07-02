@@ -47,8 +47,9 @@ class BugCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bug
         fields = (
-            'title', 'description', 'status', 'severity', 'priority', 'assigned_to'
+            'title', 'description', 'status', 'severity', 'priority', 'assigned_to', 'predicted_severity', 'roast_commentary', 'ai_status',
         )
+        read_only_fields = ('predicted_severity', 'ai_status')
 
 class ReleaseSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.name', read_only=True)

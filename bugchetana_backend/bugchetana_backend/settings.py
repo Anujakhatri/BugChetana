@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "accounts",
     "projects",
     "bugs",
+    "ai_integration",
 ]
 
 MIDDLEWARE = [
