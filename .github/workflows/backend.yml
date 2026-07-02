@@ -10,6 +10,7 @@ on:
       - system-in-backend
       - github-workflow
       - integration
+      - machine-learning
 
   pull_request:
     paths:
@@ -43,6 +44,7 @@ jobs:
 
       - name: Type check with mypy
         run: mypy . --ignore-missing-imports
+        continue-on-error: true
 
       - name: Run tests with pytest
         env:

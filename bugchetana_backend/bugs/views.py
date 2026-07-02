@@ -24,6 +24,10 @@ from .permissions import (
 )
 
 
+import logging
+from ai_integration.ml_service import predict_severity
+logger = logging.getLogger(__name__)
+
 # ─── Bug Views ───────────────────────────────────────────────
 class BugListCreateView(generics.ListCreateAPIView):
     def get_serializer_class(self):
@@ -51,9 +55,23 @@ class BugListCreateView(generics.ListCreateAPIView):
         return qs.none()
 
     def perform_create(self, serializer):
+        title = serializer.validated_data.get('title', '')
+        description = serializer.validated_data.get('description', '')
+
+        try:
+            predicted = predict_severity(title, description)
+            ai_status = True
+        except Exception as e:
+            # ml prediction is secondary feature ho yesle garda bug creation fail hunu vayena
+            logger.warning(f"Severity prediction failed, falling back to 'medium': {e}")
+            predicted = "medium"
+            ai_status = False
+
         serializer.save(
             created_by=self.request.user,
             project_id=self.kwargs['project_id'],
+            severity=predicted,
+            ai_status=ai_status,
         )
 
 
