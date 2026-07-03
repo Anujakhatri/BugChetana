@@ -7,6 +7,7 @@ import ProtectedRoute from "@/components/shared/ProtectedRoute.jsx";
 import Dashboard from './pages/Dashboard.jsx';
 import NewBug from './pages/bugs/NewBug.jsx';
 import { ProjectProvider } from './context/ProjectContext.jsx';
+import BugDetail from "@/pages/BugDetail.jsx";
 
 function App() {
   return (
@@ -25,6 +26,12 @@ function App() {
                   </ProjectProvider>
               </ProtectedRoute>
           } />
+          <Route path = "/bugs/:id" elements={
+              <ProtectedRoute>
+                  <BugDetail />
+              </ProtectedRoute>
+          } />
+
           <Route path="/bugs/new" element={
               <ProtectedRoute>
                   <ProjectProvider>
