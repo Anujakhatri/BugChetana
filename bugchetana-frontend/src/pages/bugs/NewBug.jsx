@@ -2,7 +2,15 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '@/context/ProjectContext';
 import { createBug } from '@/api/bugs';
-import { Bug, Sparkles, Flame, Loader2 } from 'lucide-react';
+import { getRoast } from '@/api/ai';
+import { Bug, Flame, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
+
+const SEVERITY_STYLES = {
+  low: 'bg-green-50 text-green-700 border-green-200',
+  medium: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  high: 'bg-orange-50 text-orange-700 border-orange-200',
+  critical: 'bg-red-50 text-red-700 border-red-200',
+};
 
 export default function NewBug() {
   const navigate = useNavigate();
@@ -16,6 +24,14 @@ export default function NewBug() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Set once the bug is successfully created — switches the UI to the success panel
+  const [createdBug, setCreatedBug] = useState(null);
+
+  // Roast Mode state — only usable after the bug exists
+  const [roast, setRoast] = useState(null);
+  const [roastLoading, setRoastLoading] = useState(false);
+  const [roastError, setRoastError] = useState(null);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -37,8 +53,8 @@ export default function NewBug() {
     setError(null);
 
     try {
-      await createBug(currentProject.id, formData);
-      navigate('/dashboard'); // Optionally, you could pass a success state or use a toast here
+      const bug = await createBug(currentProject.id, formData);
+      setCreatedBug(bug); // shows the success panel instead of navigating immediately
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.detail || "Failed to submit bug. Please try again.");
@@ -47,6 +63,123 @@ export default function NewBug() {
     }
   };
 
+  const handleRoast = async () => {
+    if (!createdBug) return;
+    setRoastLoading(true);
+    setRoastError(null);
+    try {
+      const data = await getRoast(createdBug.id);
+      setRoast(data.roast_commentary);
+    } catch (err) {
+      console.error(err);
+      setRoastError("Roast unavailable right now — try again shortly.");
+    } finally {
+      setRoastLoading(false);
+    }
+  };
+
+  // ─── Success panel — shown after the bug is created ───────────────
+  if (createdBug) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="p-6 border-b border-gray-100 flex items-center space-x-3">
+            <div className="bg-green-100 p-2 rounded-lg">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900">Bug Submitted</h2>
+          </div>
+
+          <div className="p-6 space-y-5">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Title</p>
+              <p className="font-medium text-gray-900">{createdBug.title}</p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {createdBug.ai_status ? (
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm text-gray-600">AI-predicted severity:</span>
+                  <span
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${
+                      SEVERITY_STYLES[createdBug.predicted_severity] || SEVERITY_STYLES.medium
+                    }`}
+                  >
+                    {createdBug.predicted_severity}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400">
+                  AI severity prediction wasn't available for this bug — using default.
+                </p>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-gray-100">
+              {!roast && (
+                <button
+                  type="button"
+                  onClick={handleRoast}
+                  disabled={roastLoading}
+                  className="flex items-center space-x-2 px-4 py-2 border border-gray-200 text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
+                >
+                  {roastLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Roasting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Flame className="h-4 w-4" />
+                      <span>Roast Mode</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              {roastError && (
+                <p className="text-sm text-red-600 mt-2">{roastError}</p>
+              )}
+
+              {roast && (
+                <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm text-gray-800">
+                  <div className="flex items-center gap-2 mb-1 text-orange-700 font-medium">
+                    <Flame className="h-4 w-4" />
+                    <span>Roast</span>
+                  </div>
+                  {roast}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              >
+                Go to Dashboard
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCreatedBug(null);
+                  setRoast(null);
+                  setFormData({ title: '', description: '', severity: 'medium' });
+                }}
+                className="px-6 py-2 border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                Submit Another
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Form ───────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -113,32 +246,13 @@ export default function NewBug() {
                 <option value="high">High</option>
                 <option value="critical">Critical</option>
               </select>
+              <p className="text-xs text-gray-400 mt-1">
+                AI will also suggest a severity automatically once submitted.
+              </p>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-gray-100 flex flex-wrap gap-4 items-center justify-between">
-            <div className="flex gap-3">
-              <button
-                type="button"
-                disabled
-                title="backend AI endpoint not yet available"
-                className="flex items-center space-x-2 px-4 py-2 border border-gray-200 text-gray-400 bg-gray-50 rounded-lg text-sm font-medium cursor-not-allowed"
-              >
-                <Sparkles className="h-4 w-4" />
-                <span>AI Review</span>
-              </button>
-
-              <button
-                type="button"
-                disabled
-                title="backend AI endpoint not yet available"
-                className="flex items-center space-x-2 px-4 py-2 border border-gray-200 text-gray-400 bg-gray-50 rounded-lg text-sm font-medium cursor-not-allowed"
-              >
-                <Flame className="h-4 w-4" />
-                <span>Roast Mode</span>
-              </button>
-            </div>
-
+          <div className="pt-4 border-t border-gray-100 flex justify-end">
             <button
               type="submit"
               disabled={loading}
