@@ -68,7 +68,7 @@ export default function HomePage() {
             <FeatureCard
               icon={<Zap className="h-6 w-6 text-blue-500" />}
               title="AI Bug Prediction"
-              description="Groq/Llama classifies incoming bugs before your team even sees them."
+              description="AI classifies incoming bugs before your team even sees them."
             />
             <FeatureCard
               icon={<Flame className="h-6 w-6 text-orange-500" />}
