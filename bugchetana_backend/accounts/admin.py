@@ -16,10 +16,13 @@ class UserAdmin(BaseUserAdmin):
     list_display_links = ('id','username')
     list_filter = ('role','status', 'is_active',)
     search_fields = ('username', 'email', 'name',)
-    fieldsets = BaseUserAdmin.fieldsets + (
+
+    assert BaseUserAdmin.fieldsets is not None
+    fieldsets = tuple(BaseUserAdmin.fieldsets) + (
         ('Role Info', {'fields': ('role','name')}),
     )
-    add_fieldsets = BaseUserAdmin.add_fieldsets + (
+    assert BaseUserAdmin.fieldsets is not None
+    add_fieldsets = tuple(BaseUserAdmin.add_fieldsets) + (
         ('Role Info', {'fields': ('role','name')}),
     )
 
