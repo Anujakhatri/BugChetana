@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Lock } from 'lucide-react';
 import InputField from '@/components/shared/InputField.jsx';
 import OAuthButtons from '@/components/shared/OAuthButtons.jsx';
 import { loginUser } from "@/api/authService.js";
 import { useAuth } from "@/context/AuthContext.jsx";
+
+function extractLockoutMinutes(message) {
+  const match = message?.match(/(\d+)\s*minute/i);
+  return match ? parseInt(match[1], 10) : null;
+}
 
 export default function Login() {
   // backend connection ko lagi chaini
@@ -17,8 +22,41 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
 
+  // Lockout state
+  const [lockedUntil, setLockedUntil] = useState(null); // Date object or null
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    if (!lockedUntil) return;
+
+    const tick = () => {
+      const secondsLeft = Math.max(0, Math.round((lockedUntil - new Date()) / 1000));
+      setRemainingSeconds(secondsLeft);
+      if (secondsLeft <= 0) {
+        setLockedUntil(null);
+        setError("");
+        clearInterval(intervalRef.current);
+      }
+    };
+
+    tick();
+    intervalRef.current = setInterval(tick, 1000);
+    return () => clearInterval(intervalRef.current);
+  }, [lockedUntil]);
+
+  const isLocked = lockedUntil !== null && remainingSeconds > 0;
+
+  const formatCountdown = (totalSeconds) => {
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLocked) return;
+
     {/* ui ma actual backend ko data lyaune */ }
     try {
       // Step 1: Backend ma POST request
@@ -32,11 +70,18 @@ export default function Login() {
       navigate("/dashboard");
     } catch (err) {
       const data = err.response?.data;
+
       if (typeof data === "string" && data.toLowerCase().includes("<html")) {
         console.error("Server Error:", data);
         setError("An unexpected server error occurred. Please try again later.");
-      } else {
-        setError(data?.detail || (typeof data === "string" ? data : "Login failed."));
+        return;
+      }
+      const message = data?.detail || (typeof data === "string" ? data : "Login failed.");
+      setError(message);
+      // Detect a lockout response and start the countdown
+      const minutes = extractLockoutMinutes(message);
+      if (message.toLowerCase().includes("Locked") && minutes){
+        setLockedUntil(new Date(Date.now() + minutes * 60 * 1000));
       }
     }
   };
@@ -57,6 +102,7 @@ export default function Login() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Enter your email"
             required
+            disabled={isLocked}
           />
 
           <InputField
@@ -66,11 +112,13 @@ export default function Login() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter your password"
             required
+            disabled={isLocked}
             rightElement={
               <button
                 type="button"
                 className="text-gray-400 hover:text-gray-600 focus:outline-none"
                 onClick={() => setShowPassword(!showPassword)}
+                disabled={isLocked}
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -92,16 +140,23 @@ export default function Login() {
             </a>
           </div>
 
-          {/* error message */}
-          {error && (
-            <p className="text-sm text-red-500 text-center">{error}</p>
-          )}
+          {isLocked ? (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-3 py-2.5">
+              <Lock className="h-4 w-4 shrink-0" />
+              <span>
+                Account temporarily locked. Try again in{' '}
+                <span className="font-semibold tabular-nums">{formatCountdown(remainingSeconds)}</span>.
+              </span>
+            </div>
+          ) : error ? (
+             <p className="text-sm text-red-500 text-center">{error}</p>
+          ) : null}
 
           <button
             type="submit"
             className="w-full h-11 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
           >
-            Log in
+            {isLocked ? 'Locked' : 'Log in'}
           </button>
         </form>
 

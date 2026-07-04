@@ -1,38 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/api/axiosInstance";
 
-import { useProject } from "@/context/ProjectContext";
+import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 
 export default function QaDashboard() {
-  const [bugs, setBugs] = useState([]);
   const [activeTab, setActiveTab] = useState("pending");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { bugs, loading, error, refetch: fetchBugs } = useDashboardSummary();
 
-  const { currentProject } = useProject();
-  const projectId = currentProject?.id;
 
-  useEffect(() => {
-    if (projectId) {
-      fetchBugs();
-    }
-  }, [projectId]);
-
-  const fetchBugs = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get(`/projects/${projectId}/bugs/`);
-      setBugs(res.data);
-    } catch (err) {
-      setError("Failed to load QA dashboard data.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleQaAction = async (bugId, result) => {
     try {

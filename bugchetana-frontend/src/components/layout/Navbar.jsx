@@ -14,13 +14,11 @@ export default function Navbar() {
 
   const handleSectionClick = (sectionId) => {
     if (location.pathname === '/') {
-      // Already on HomePage — just scroll
       const section = document.getElementById(sectionId);
       if (section) {
         section.scrollIntoView({ behavior: 'smooth' });
       }
     } else {
-      // On different page — go to Home first, then scroll
       navigate('/');
       setTimeout(() => {
         const section = document.getElementById(sectionId);
@@ -33,10 +31,8 @@ export default function Navbar() {
 
   const handleLogoClick = () => {
     if (location.pathname === '/') {
-      // Already on home — just scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      // On another page — navigate home then scroll to top
       navigate('/');
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -52,6 +48,8 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const canSubmitBug = user?.roleName === 'Developer' || user?.roleName === 'Release Manager';
+  const isRM = user?.roleName === 'Release Manager';
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/90 backdrop-blur-md shadow-sm border-b border-slate-200' : 'bg-transparent'
@@ -80,25 +78,34 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <Link to="/bugs/new" className="text-slate-600 hover:text-blue-600 font-medium transition-colors mr-2">Submit Bug</Link>
+                {isRM && (
+                  <>
+                    <Link to="/projects" className="text-slate-600 hover:text-blue-600 font-medium transition-colors mr-2">Projects</Link>
+                    <Link to="/users" className="text-slate-600 hover:text-blue-600 font-medium transition-colors mr-2">Users</Link>
+                  </>
+                )}
                 
+                {canSubmitBug && (
+                  <Link to="/bugs/new" className="text-slate-600 hover:text-blue-600 font-medium transition-colors mr-2">Submit Bug</Link>
+                )}
+
                 {/* Profile Dropdown */}
                 <div className="flex items-center space-x-3">
-  <span className="text-sm font-medium text-slate-700">
-    {user?.name || user?.username || "User"}
-  </span>
+                  <span className="text-sm font-medium text-slate-700">
+                    {user?.name || user?.username || "User"}
+                  </span>
 
-  <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded capitalize">
-    {user?.roleName?.replace(/_/g, ' ')}
-  </span>
+                  <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded capitalize">
+                    {user?.roleName?.replace(/_/g, ' ')}
+                  </span>
 
-  <button
-    onClick={logout}
-    className="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-4 py-2 rounded-md transition-colors shadow-sm"
-  >
-    Logout
-  </button>
-</div>
+                  <button
+                    onClick={logout}
+                    className="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-4 py-2 rounded-md transition-colors shadow-sm"
+                  >
+                    Logout
+                  </button>
+                </div>
               </>
             )}
           </div>
@@ -159,13 +166,36 @@ export default function Navbar() {
                     </span>
                   </div>
                 </div>
-                <Link
-                  to="/bugs/new"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
-                >
-                  Submit Bug
-                </Link>
+
+                {isRM && (
+                  <>
+                    <Link
+                      to="/projects"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
+                    >
+                      Projects
+                    </Link>
+                    <Link
+                      to="/users"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
+                    >
+                      Users
+                    </Link>
+                  </>
+                )}
+
+                {canSubmitBug && (
+                  <Link
+                    to="/bugs/new"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
+                  >
+                    Submit Bug
+                  </Link>
+                )}
+
                 <button
                   onClick={() => { setIsMobileMenuOpen(false); logout(); }}
                   className="block w-full text-left px-3 py-2 mt-4 rounded-md text-base font-medium bg-red-500 text-white hover:bg-red-600"

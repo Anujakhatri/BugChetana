@@ -56,8 +56,8 @@ Base path: `/api/auth/`
 {
   "message": "Registration successful",
   "user": {
-    "username": "anuja123",
-    "email": "anuja@example.com",
+    "username": "test123",
+    "email": "test@example.com",
     "role": "Developer"
   },
   "tokens": {
@@ -111,9 +111,9 @@ Base path: `/api/auth/`
 {
   "message": "Login successful",
   "user": {
-    "username": "anuja123",
-    "email": "anuja@example.com",
-    "name": "Anuja Khatri",
+    "username": "test123",
+    "email": "testing@example.com",
+    "name": "Capstone KC",
     "role": "Developer"
   },
   "tokens": {
@@ -216,9 +216,9 @@ Base path: `/api/auth/`
 ```json
 {
   "id": 4,
-  "username": "anuja123",
-  "email": "anuja@example.com",
-  "name": "Anuja Khatri",
+  "username": "test123",
+  "email": "testing@example.com",
+  "name": "capstone Kc",
   "role": "Developer",
   "created_at": "2026-06-28T09:15:00Z"
 }
@@ -260,9 +260,9 @@ Base path: `/api/auth/`
   },
   {
     "id": 4,
-    "username": "anuja123",
-    "email": "anuja@example.com",
-    "name": "Anuja Khatri",
+    "username": "test123",
+    "email": "test@example.com",
+    "name": "Capstone Kc",
     "role": "Developer",
     "status": "active",
     "created_at": "2026-06-28T09:15:00Z"
@@ -304,11 +304,11 @@ Base path: `/api/auth/`
 **Response (200 OK):**
 ```json
 {
-  "message": "Anuja Khatri's role updated from 'Developer' to 'QA'.",
+  "message": "Capstone Kc's role updated from 'Developer' to 'QA'.",
   "user": {
     "id": 4,
-    "username": "anuja123",
-    "email": "anuja@example.com",
+    "username": "test123",
+    "email": "test@example.com",
     "role": "QA"
   }
 }
@@ -451,8 +451,8 @@ Base path: `/api/projects/`
     "id": 12,
     "project": 3,
     "user": 4,
-    "user_email": "anuja@example.com",
-    "user_name": "Anuja Khatri",
+    "user_email": "test@example.com",
+    "user_name": "Capstone Kc",
     "role": "Developer",
     "joined_at": "2026-06-16T11:00:00Z"
   }
@@ -605,7 +605,7 @@ Base path assumed: `/api/` (bug routes are not project-nested at the URL level e
     "id": 8,
     "bug": 12,
     "user": 4,
-    "user_name": "Anuja Khatri",
+    "user_name": "Capstone Kc",
     "comment_text": "Confirmed on my end too — only reproduces in Safari.",
     "created_at": "2026-07-02T14:22:00Z"
   }
@@ -633,7 +633,7 @@ Base path assumed: `/api/` (bug routes are not project-nested at the URL level e
     "id": 5,
     "bug": 12,
     "changed_by": 4,
-    "changed_by_name": "Anuja Khatri",
+    "changed_by_name": "Capstone Kc",
     "old_status": "open",
     "new_status": "resolved",
     "changed_at": "2026-07-02T16:00:00Z"

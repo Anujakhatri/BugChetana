@@ -2,44 +2,27 @@ import React, { useState, useEffect } from "react";
 import api from "@/api/axiosInstance";
 import InputField from "@/components/shared/InputField";
 
-import { useProject } from "@/context/ProjectContext";
+import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 
 export default function ReleaseManagerDashboard() {
-  const [summary, setSummary] = useState(null);
   const [releases, setReleases] = useState([]);
-  const [bugs, setBugs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
   const [newReleaseVersion, setNewReleaseVersion] = useState("");
   const [selectedBugId, setSelectedBugId] = useState("");
 
-  const { currentProject } = useProject();
-  const projectId = currentProject?.id;
+  const { summary, bugs, loading, error, refetch, projectId } = useDashboardSummary();
 
   useEffect(() => {
     if (projectId) {
-      fetchDashboardData();
+      fetchReleases();
     }
   }, [projectId]);
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    setError(null);
+  const fetchReleases = async () => {
     try {
-      const [summaryRes, releasesRes, bugsRes] = await Promise.all([
-        api.get(`/projects/${projectId}/dashboard/`),
-        api.get(`/projects/${projectId}/releases/`),
-        api.get(`/projects/${projectId}/bugs/`)
-      ]);
-      setSummary(summaryRes.data);
+      const releasesRes = await api.get(`/projects/${projectId}/releases/`);
       setReleases(releasesRes.data);
-      setBugs(bugsRes.data);
     } catch (err) {
-      setError("Failed to load Release Manager dashboard.");
       console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -49,7 +32,7 @@ export default function ReleaseManagerDashboard() {
     try {
       await api.post(`/projects/${projectId}/releases/`, { version: newReleaseVersion });
       setNewReleaseVersion("");
-      fetchDashboardData();
+      fetchReleases();
     } catch (err) {
       alert("Failed to create release");
     }
@@ -60,7 +43,7 @@ export default function ReleaseManagerDashboard() {
     try {
       await api.post(`/releases/${releaseId}/add-bug/`, { bug_id: bugId });
       setSelectedBugId("");
-      fetchDashboardData();
+      fetchReleases();
     } catch (err) {
       alert("Failed to add bug to release");
     }

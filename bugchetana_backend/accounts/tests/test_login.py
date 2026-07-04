@@ -17,9 +17,9 @@ class TestLoginView:
 
     #login returns role
     def test_login_returns_role(self, api_client, make_user, qa_role):
-        make_user('anu', 'anu@test.com', role=qa_role)
+        make_user('cap', 'cap@test.com', role=qa_role)
         res = api_client.post(reverse('login'), {
-            'email': 'anu@test.com',
+            'email': 'cap@test.com',
             'password': 'testpass123',
         })
         assert res.status_code == 200

@@ -21,9 +21,9 @@ function formatRole(roleName = "") {
 // Role badge color
 function roleBadgeClass(roleName = "") {
   switch (roleName) {
-    case "developer":      return "bg-blue-100 text-blue-700";
-    case "qa":             return "bg-purple-100 text-purple-700";
-    case "release_manager": return "bg-teal-100 text-teal-700";
+    case "Developer":      return "bg-blue-100 text-blue-700";
+    case "QA":             return "bg-purple-100 text-purple-700";
+    case "Release Manager": return "bg-teal-100 text-teal-700";
     default:               return "bg-gray-100 text-gray-700";
   }
 }
@@ -33,9 +33,9 @@ export default function Dashboard() {
 
   const renderDashboardContent = () => {
     switch (user?.roleName) {
-      case "developer":       return <DeveloperDashboard />;
-      case "qa":              return <QaDashboard />;
-      case "release_manager": return <ReleaseManagerDashboard />;
+      case "Developer":       return <DeveloperDashboard />;
+      case "QA":              return <QaDashboard />;
+      case "Release Manager": return <ReleaseManagerDashboard />;
       default:
         return (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
@@ -81,15 +81,8 @@ export default function Dashboard() {
               {user?.email}
             </p>
             <div className="flex items-center justify-between mt-2">
-              {/*<span className={`text-xs font-medium px-2 py-0.5 rounded-full ${roleBadgeClass(user?.roleName)}`}>*/}
               {/*  {formatRole(user?.roleName)}*/}
               {/*</span>*/}
-              <Link
-                to="/profile"
-                className="text-xs text-teal-600 hover:text-teal-800 hover:underline transition-colors"
-              >
-                Edit Profile
-              </Link>
             </div>
           </div>
 

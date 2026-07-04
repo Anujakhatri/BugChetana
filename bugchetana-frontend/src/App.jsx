@@ -7,7 +7,9 @@ import ProtectedRoute from "@/components/shared/ProtectedRoute.jsx";
 import Dashboard from './pages/Dashboard.jsx';
 import NewBug from './pages/bugs/NewBug.jsx';
 import { ProjectProvider } from './context/ProjectContext.jsx';
-import BugDetail from "@/pages/BugDetail.jsx";
+import BugDetail from "./pages/BugDetail.jsx";
+import ProjectManagement from "@/pages/ProjectManagement.jsx";
+import UserManagement from "@/pages/UserManagement.jsx";
 
 function App() {
   return (
@@ -26,19 +28,33 @@ function App() {
                   </ProjectProvider>
               </ProtectedRoute>
           } />
-          <Route path = "/bugs/:id" elements={
+          <Route path="/bugs/:id" element={
               <ProtectedRoute>
                   <BugDetail />
               </ProtectedRoute>
           } />
 
           <Route path="/bugs/new" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['Developer', 'Release Manager']}>
                   <ProjectProvider>
                     <NewBug />
                   </ProjectProvider>
               </ProtectedRoute>
           } />
+
+          <Route path="/projects" element={
+              <ProtectedRoute allowedRoles={['Release Manager']}>
+                  <ProjectProvider>
+                    <ProjectManagement />
+                  </ProjectProvider>
+              </ProtectedRoute>
+          } />
+          <Route path="/users" element={
+              <ProtectedRoute allowedRoles={['Release Manager']}>
+                  <UserManagement />
+              </ProtectedRoute>
+          } />
+            
         </Route>
       </Routes>
     </BrowserRouter>
