@@ -12,6 +12,15 @@ class IsAdmin(BasePermission):
             request.user.is_staff
         )
 
+class IsAdminOrReleaseManager(BasePermission):
+    message = "Only admins or release managers can perform this action."
+
+    def has_permission(self, request, view):
+        return (
+            request.user and request.user.is_authenticated and
+            (request.user.is_staff or get_role(request.user) == 'Release Manager')
+        )
+
 class IsDeveloper(BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and get_role(request.user) == 'Developer'

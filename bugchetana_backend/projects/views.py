@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from .models import Project, ProjectMember
 from accounts.permissions import IsReleaseManager
 from .serializers import ProjectSerializer, ProjectMemberSerializer
-from .permissions import IsProjectMember, IsOwnProjectReleaseManager
+from .permissions import IsProjectMember, IsOwnProjectReleaseManager, CanManageProjectMembers
 
 
 class ProjectListCreateView(generics.ListCreateAPIView):
@@ -30,6 +30,15 @@ class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = (IsAuthenticated, IsProjectMember)
     queryset = Project.objects.all()
 
+class ProjectMemberListCreateView(generics.ListCreateAPIView):
+    serializer_class = ProjectMemberSerializer
+    permission_classes = (CanManageProjectMembers,)
+
+    def get_queryset(self):
+        return ProjectMember.objects.filter(project_id=self.kwargs['project_id'])
+
+    def perform_create(self, serializer):
+        serializer.save(project_id=self.kwargs['project_id'])
 
 class AddProjectMemberView(APIView):
     permission_classes = (IsAuthenticated, IsOwnProjectReleaseManager)
@@ -55,7 +64,7 @@ class AddProjectMemberView(APIView):
 
 
 class RemoveProjectMemberView(APIView):
-    permission_classes = (IsAuthenticated, IsOwnProjectReleaseManager)
+    permission_classes = (IsAuthenticated, CanManageProjectMembers)
 
     def delete(self, request, project_id, user_id):
         try:

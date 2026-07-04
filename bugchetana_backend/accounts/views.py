@@ -1,6 +1,6 @@
 import hashlib
 from urllib.request import Request
-from .permissions import IsAdmin
+from .permissions import IsAdmin, IsAdminOrReleaseManager
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework import status, generics
@@ -10,8 +10,11 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializer import RegisterSerializer, LoginSerializer, LogoutSerializer, ProfileSerializer, RoleUpdateSerializer, UserListSerializer
-from .models import UserSession
+from .serializers import (
+    RegisterSerializer, LoginSerializer, LogoutSerializer, ProfileSerializer,
+    RoleUpdateSerializer, UserListSerializer, RoleSerializer,
+)
+from .models import UserSession, Role
 
 from django.contrib.auth import get_user_model
 
@@ -64,15 +67,10 @@ class LoginView(TokenObtainPairView):
         decoded= RefreshToken(refresh_token)
         user = User.objects.get(id=decoded['user_id'])
 
-        #session save garne
-        UserSession.objects.create(
-            user = user,
-            refresh_token_hash = hash_token(refresh_token),
-            expires_at = timezone.now() + timedelta(days=7)
-        )
         return Response({
             "message": "Login successful",
             "user": {
+                "id": user.id,
                 "username": user.username,
                 "email": user.email,
                 "name": user.name,
@@ -138,7 +136,17 @@ class RoleUpdateView(APIView):
 #admin and release manager can see everyone
 class UserListView(generics.ListAPIView):
     serializer_class = UserListSerializer
-    permission_classes = (IsAuthenticated, IsAdmin)
+    permission_classes = (IsAuthenticated, IsAdmin, IsAdminOrReleaseManager)
 
     def get_queryset(self):
         return User.objects.select_related('role').order_by('created_at')
+
+class RoleListView(generics.ListAPIView):
+    """
+    Lightweight lookup for populating role dropdowns in Role Management UI.
+    Any authenticated user with UI access to role management needs this —
+    same permission as UserListView/RoleUpdateView.
+    """
+    serializer_class = RoleSerializer
+    permission_classes = (IsAuthenticated, IsAdminOrReleaseManager)
+    queryset = Role.objects.all().order_by('name')

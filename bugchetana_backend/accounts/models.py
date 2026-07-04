@@ -26,6 +26,11 @@ class User(AbstractUser):
         default='active',
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # login lockout tracking (4 attempts)
+    failed_login_attempts = models.PositiveIntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'name']
 

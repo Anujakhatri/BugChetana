@@ -32,7 +32,11 @@ def _chat(system_prompt: str, user_prompt: str, max_tokens: int = 300) -> str:
             max_completion_tokens=max_tokens,
             temperature=0.7,
         )
-        return completion.choices[0].message.content.strip()
+        content = completion.choices[0].message.content
+        if content is None:
+            raise RuntimeError("Groq returned an empty response")
+        return content.strip()
+
     except RateLimitError:
         logger.warning("Groq API rate limit reached")
         raise RuntimeError("Groq rate limit hit so try again shortly")

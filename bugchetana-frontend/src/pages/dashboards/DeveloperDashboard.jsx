@@ -1,40 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/api/axiosInstance";
 
-import { useProject } from "@/context/ProjectContext";
+import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 
 export default function DeveloperDashboard() {
-  const [summary, setSummary] = useState(null);
-  const [bugs, setBugs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { summary, bugs, setBugs, loading, error } = useDashboardSummary();
 
-  const { currentProject } = useProject();
-  const projectId = currentProject?.id;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!projectId) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const [summaryRes, bugsRes] = await Promise.all([
-          api.get(`/projects/${projectId}/dashboard/`),
-          api.get(`/projects/${projectId}/bugs/`)
-        ]);
-        setSummary(summaryRes.data);
-        setBugs(bugsRes.data);
-      } catch (err) {
-        setError("Failed to load dashboard data.");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [projectId]);
 
   const handleStatusChange = async (bugId, newStatus) => {
     try {

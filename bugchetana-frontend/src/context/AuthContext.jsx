@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }) => {
     }
     // The backend sends user.role as a nested object (e.g., { id: 1, name: "Developer" }). We normalize it to a flat string roleName.
     const rawRole = typeof userData.role === 'object' && userData.role !== null ? userData.role.name : userData.role;
-    const roleName = (rawRole || "").toLowerCase().replace(/\s+/g, '_');
+    const roleName = (rawRole || "");
     
     setUserRaw({ ...userData, roleName });
   };
