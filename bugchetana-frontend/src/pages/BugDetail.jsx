@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import {
-  getBug, updateBug, deleteBug,
+  getBug, updateBug, deleteBug, resubmitBug,
   getBugComments, addBugComment, getBugHistory,
 } from '@/api/bugs';
 import { getRoast, getSuggestedFix } from '@/api/ai';
+import PageContainer from '@/components/layout/PageContainer';
 import {
   ArrowLeft, Loader2, Trash2, MessageSquare, Clock,
   Flame, Wrench, Sparkles, Save,
@@ -22,7 +23,9 @@ const STATUS_STYLES = {
   open: 'bg-blue-50 text-blue-700 border-blue-200',
   in_progress: 'bg-purple-50 text-purple-700 border-purple-200',
   resolved: 'bg-teal-50 text-teal-700 border-teal-200',
-  closed: 'bg-gray-100 text-gray-600 border-gray-200',
+  closed: 'bg-green-50 text-green-700 border-green-200',
+  failed: 'bg-red-50 text-red-700 border-red-200',
+  resubmitted: 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
 export default function BugDetail() {
@@ -50,6 +53,7 @@ export default function BugDetail() {
   const [aiError, setAiError] = useState(null);
 
   const [deleting, setDeleting] = useState(false);
+  const [resubmitLoading, setResubmitLoading] = useState(false);
 
   const role = user?.roleName;
 
@@ -192,6 +196,28 @@ export default function BugDetail() {
     }
   };
 
+  const handleResubmit = async () => {
+    setResubmitLoading(true);
+    setSaveError(null);
+    try {
+      const updated = await resubmitBug(id, {
+        title: editForm.title,
+        description: editForm.description,
+      });
+      setBug(updated);
+      setEditForm({
+        ...editForm,
+        status: updated.status,
+      });
+    } catch (err) {
+      setSaveError(err.response?.data?.detail || 'Failed to resubmit bug.');
+    } finally {
+      setResubmitLoading(false);
+    }
+  };
+
+  const canResubmit = isDeveloper && bug?.status === 'failed';
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -210,8 +236,7 @@ export default function BugDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-4">
+    <PageContainer maxWidth="6xl" innerClassName="space-y-4">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
@@ -347,11 +372,35 @@ export default function BugDetail() {
                   </button>
                 </>
               )}
+              {canResubmit && (
+                <button
+                  type="button"
+                  onClick={handleResubmit}
+                  disabled={resubmitLoading}
+                  className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-70"
+                >
+                  {resubmitLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Resubmit for QA
+                </button>
+              )}
             </div>
           </div>
 
           {/* ─── MAIN: Description, AI, Comments, History ─── */}
           <div className="md:col-span-2 space-y-4">
+            {bug.qa_comment && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+                <h2 className="font-semibold text-red-800 mb-2">QA Review Comment</h2>
+                <p className="text-sm text-red-900 whitespace-pre-wrap">{bug.qa_comment}</p>
+                {bug.reviewed_by_name && (
+                  <p className="text-xs text-red-700 mt-2">
+                    Reviewed by {bug.reviewed_by_name}
+                    {bug.reviewed_at && ` · ${new Date(bug.reviewed_at).toLocaleString()}`}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Description */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h2 className="font-semibold text-gray-900 mb-2">Description</h2>
@@ -363,7 +412,7 @@ export default function BugDetail() {
               ) : (
                 <p className="text-gray-700 whitespace-pre-wrap">{bug.description}</p>
               )}
-              {isReleaseManager && (
+              {(isReleaseManager || (isDeveloper && canResubmit)) && (
                 <div className="mt-3">
                   <label className="block text-xs font-medium text-gray-500 mb-1">Title</label>
                   <input
@@ -478,7 +527,6 @@ export default function BugDetail() {
             </div>
           </div>
         </form>
-      </div>
-    </div>
+    </PageContainer>
   );
 }

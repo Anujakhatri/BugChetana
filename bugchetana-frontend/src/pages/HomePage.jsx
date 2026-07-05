@@ -45,6 +45,12 @@ export default function HomePage() {
           >
             Get Started <ArrowRight className="h-5 w-5" />
           </Link>
+          <Link
+            to="/submit-bug"
+            className="flex items-center justify-center bg-white text-slate-700 border border-slate-300 px-8 py-3.5 rounded-lg font-medium text-lg hover:bg-slate-50 transition-colors"
+          >
+            Try Bug Prediction
+          </Link>
           <a
             href="#features"
             className="flex items-center justify-center bg-white text-slate-700 border border-slate-300 px-8 py-3.5 rounded-lg font-medium text-lg hover:bg-slate-50 transition-colors"

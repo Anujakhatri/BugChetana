@@ -26,6 +26,8 @@ class BugSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.name', read_only=True)
     assigned_to_name = serializers.CharField(source='assigned_to.name', read_only=True)
     verified_by_name = serializers.CharField(source='verified_by.name', read_only=True)
+    reviewed_by_name = serializers.CharField(source='reviewed_by.name', read_only=True)
+    latest_qa_result = serializers.SerializerMethodField()
 
     class Meta:
         model = Bug
@@ -35,13 +37,27 @@ class BugSerializer(serializers.ModelSerializer):
             'project', 'created_by', 'created_by_name',
             'assigned_to', 'assigned_to_name',
             'verified_by', 'verified_by_name',
+            'qa_comment', 'reviewed_by', 'reviewed_by_name', 'reviewed_at',
+            'latest_qa_result',
             'created_at', 'updated_at'
         )
         read_only_fields = (
             'created_by', 'ai_status',
             'predicted_severity', 'roast_commentary',
-            'solution_suggestion', 'created_at', 'updated_at'
+            'solution_suggestion', 'qa_comment', 'reviewed_by', 'reviewed_at',
+            'created_at', 'updated_at'
         )
+
+    def get_latest_qa_result(self, obj):
+        qa = obj.qa_results.order_by('-tested_at').first()
+        if not qa:
+            return None
+        return {
+            'result': qa.result,
+            'notes': qa.notes,
+            'tested_at': qa.tested_at,
+            'qa_name': qa.qa.name if qa.qa else None,
+        }
 
 class BugCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -71,3 +87,37 @@ class QAResultSerializer(serializers.ModelSerializer):
         model = QAResult
         fields = ('id', 'bug', 'qa', 'qa_name', 'result', 'notes', 'tested_at')
         read_only_fields = ('bug', 'qa', 'tested_at')
+
+    def validate(self, data):
+        result = data.get('result')
+        notes = (data.get('notes') or '').strip()
+        if result == 'fail' and not notes:
+            raise serializers.ValidationError(
+                {'notes': 'A comment is required when marking a bug as failed.'}
+            )
+        if notes:
+            data['notes'] = notes
+        return data
+
+
+class BugAssignSerializer(serializers.Serializer):
+    assigned_to = serializers.IntegerField()
+
+    def validate_assigned_to(self, value):
+        try:
+            user = User.objects.select_related('role').get(pk=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError('Developer not found.')
+        if not user.role or user.role.name != 'Developer':
+            raise serializers.ValidationError('Only Developer users can be assigned to bugs.')
+        return value
+
+
+class BugResubmitSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=255, required=False)
+    description = serializers.CharField(required=False)
+
+    def validate(self, data):
+        if not data.get('title') and not data.get('description'):
+            raise serializers.ValidationError('Provide an updated title or description to resubmit.')
+        return data

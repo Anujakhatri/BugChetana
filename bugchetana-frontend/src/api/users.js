@@ -1,6 +1,7 @@
 import api from './axiosInstance.js';
 
-export const getUsers = () => api.get('/auth/users/').then(res => res.data);
+export const getUsers = (params = {}) =>
+  api.get('/auth/users/', { params }).then(res => res.data);
 export const updateUserRole = (userId, roleId) => 
   api.patch(`/auth/users/${userId}/role/`, { role_id: roleId }).then(res => res.data);
 

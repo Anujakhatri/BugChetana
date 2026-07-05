@@ -10,6 +10,8 @@ import { ProjectProvider } from './context/ProjectContext.jsx';
 import BugDetail from "./pages/BugDetail.jsx";
 import ProjectManagement from "@/pages/ProjectManagement.jsx";
 import UserManagement from "@/pages/UserManagement.jsx";
+import QaDevelopers from "@/pages/QaDevelopers.jsx";
+import SubmitBug from './pages/SubmitBug.jsx';
 
 function App() {
   return (
@@ -18,6 +20,8 @@ function App() {
         <Route element={<Layout />}>
            {/* Public */}
           <Route path="/" element={<HomePage />} />
+          <Route path="/submit-bug" element={<SubmitBug />} />
+          <Route path="/dashboard/submit-bug" element={<SubmitBug />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           {/* Protected */}
@@ -52,6 +56,11 @@ function App() {
           <Route path="/users" element={
               <ProtectedRoute allowedRoles={['Release Manager']}>
                   <UserManagement />
+              </ProtectedRoute>
+          } />
+          <Route path="/developers" element={
+              <ProtectedRoute allowedRoles={['QA']}>
+                  <QaDevelopers />
               </ProtectedRoute>
           } />
             

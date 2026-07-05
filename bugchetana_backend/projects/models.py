@@ -3,6 +3,7 @@ from accounts.models import User
 
 class Project(models.Model):
     name = models.CharField(max_length=200)
+    description = models.TextField(null=True, blank=True)
     release_manager = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -29,6 +30,13 @@ class ProjectMember(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='project_members'
+    )
+    assigned_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_project_members',
     )
     joined_at = models.DateTimeField(auto_now_add=True)
 

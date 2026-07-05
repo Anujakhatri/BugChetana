@@ -23,7 +23,7 @@ def can_view_project(user, project):
 class CanManageProjectMembers(BasePermission):
     """
     GET (list members): any project member, or the project's release manager.
-    POST/DELETE (add/remove members): release manager of THIS project only.
+    POST/DELETE (add/remove members): release manager of THIS project, or QA member.
     """
     message = "You do not have permission to manage members for this project."
 
@@ -35,15 +35,18 @@ class CanManageProjectMembers(BasePermission):
         try:
             project = Project.objects.get(pk=project_id)
         except Project.DoesNotExist:
-            return True  # let it 404 downstream, not 403
+            return True
 
         if request.method in SAFE_METHODS:
             return can_view_project(request.user, project)
 
-        return (
-            get_role(request.user) == 'Release Manager'
-            and is_project_release_manager(request.user, project)
-        )
+        role = get_role(request.user)
+        if role == 'Release Manager':
+            return is_project_release_manager(request.user, project)
+        if role == 'QA':
+            return is_project_member(request.user, project)
+
+        return False
 
 class IsProjectMember(BasePermission):
     message = "You do not have permission to perform this action."

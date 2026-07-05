@@ -4,6 +4,8 @@ import {
   getProjects, createProject, updateProject, deleteProject,
   getProjectMembers, addProjectMember, removeProjectMember,
 } from '@/api/projects';
+import { getUsers } from '@/api/users';
+import PageContainer from '@/components/layout/PageContainer';
 import { Plus, Trash2, Users, Loader2, X, Pencil } from 'lucide-react';
 
 export default function ProjectManagement() {
@@ -16,6 +18,9 @@ export default function ProjectManagement() {
 
   // create form
   const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [selectedQaIds, setSelectedQaIds] = useState([]);
+  const [qaOptions, setQaOptions] = useState([]);
   const [creating, setCreating] = useState(false);
 
   // inline rename
@@ -45,16 +50,25 @@ export default function ProjectManagement() {
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects]);
+    if (isRM) {
+      getUsers({ role: 'QA' }).then(setQaOptions).catch(console.error);
+    }
+  }, [loadProjects, isRM]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      const project = await createProject({ name: newName.trim() });
+      const project = await createProject({
+        name: newName.trim(),
+        description: newDescription.trim() || undefined,
+        qa_ids: selectedQaIds.map(Number),
+      });
       setProjects([...projects, project]);
       setNewName('');
+      setNewDescription('');
+      setSelectedQaIds([]);
     } catch (err) {
       console.error(err);
       setError('Failed to create project.');
@@ -147,28 +161,53 @@ export default function ProjectManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto space-y-6">
+    <PageContainer maxWidth="3xl">
         <h1 className="text-xl font-semibold text-gray-900">Projects</h1>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         {/* Create — RM only (backend also enforces this via IsReleaseManager on POST) */}
         {isRM && (
-          <form onSubmit={handleCreate} className="bg-white rounded-xl border border-gray-200 p-4 flex gap-2">
+          <form onSubmit={handleCreate} className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="New project name"
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             />
+            <textarea
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              placeholder="Project description (optional)"
+              rows={3}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+            {qaOptions.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Assign QA (optional)</label>
+                <select
+                  multiple
+                  value={selectedQaIds}
+                  onChange={(e) =>
+                    setSelectedQaIds(Array.from(e.target.selectedOptions, (o) => o.value))
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[88px]"
+                >
+                  {qaOptions.map((qa) => (
+                    <option key={qa.id} value={qa.id}>
+                      {qa.name} ({qa.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button
               type="submit"
               disabled={creating}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
             >
               {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Create
+              Create Project
             </button>
           </form>
         )}
@@ -285,7 +324,6 @@ export default function ProjectManagement() {
             );
           })}
         </div>
-      </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -1,8 +1,10 @@
 import { useAuth } from "@/context/AuthContext";
 import { Link } from "react-router-dom";
+import PageContainer from "@/components/layout/PageContainer";
 import DeveloperDashboard from "./dashboards/DeveloperDashboard";
 import QaDashboard from "./dashboards/QaDashboard";
 import ReleaseManagerDashboard from "./dashboards/ReleaseManager";
+import ProjectSelector from "@/components/shared/ProjectSelector";
 
 // Helper — "chetana shah" → "CS"
 function getInitials(name = "") {
@@ -32,7 +34,7 @@ export default function Dashboard() {
   const { user } = useAuth();
 
   const renderDashboardContent = () => {
-    switch (user?.roleName) {
+    switch (user?.role) {
       case "Developer":       return <DeveloperDashboard />;
       case "QA":              return <QaDashboard />;
       case "Release Manager": return <ReleaseManagerDashboard />;
@@ -49,7 +51,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 space-y-6">
+    <PageContainer maxWidth="7xl">
 
       {/* ── Dashboard Header ── */}
       <div className="flex items-start justify-between">
@@ -90,8 +92,13 @@ export default function Dashboard() {
       </div>
 
       {/* ── Dashboard Content (role-based) ── */}
+      {user?.roleName !== "Release Manager" && (
+        <div className="flex justify-end">
+          <ProjectSelector />
+        </div>
+      )}
       {renderDashboardContent()}
 
-    </div>
+    </PageContainer>
   );
 }

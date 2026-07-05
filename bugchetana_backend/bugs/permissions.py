@@ -82,7 +82,7 @@ class HasBugAccess(BasePermission):
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
-        bug_id = view.kwargs.get('bug_id')
+        bug_id = view.kwargs.get('bug_id') or view.kwargs.get('pk')
         if not bug_id:
             return False
         from bugs.models import Bug
@@ -99,7 +99,7 @@ class CanCreateBug(HasProjectAccess):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        return get_role(request.user) == 'Developer'
+        return get_role(request.user) in ['Developer']
 
 
 class CanSubmitQAResult(BasePermission):
@@ -109,7 +109,7 @@ class CanSubmitQAResult(BasePermission):
     def has_permission(self, request, view):
         if not request.user.is_authenticated or get_role(request.user) != 'QA':
             return False
-        bug_id = view.kwargs.get('bug_id')
+        bug_id = view.kwargs.get('bug_id') or view.kwargs.get('pk')
         if not bug_id:
             return False
         from bugs.models import Bug

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getUsers, getRoles, updateUserRole } from '@/api/users';
+import PageContainer from '@/components/layout/PageContainer';
 import { Loader2, Check } from 'lucide-react';
 
 export default function UserManagement() {
@@ -62,8 +63,7 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto space-y-4">
+    <PageContainer maxWidth="3xl" innerClassName="space-y-4">
         <h1 className="text-xl font-semibold text-gray-900">User Role Management</h1>
         {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -114,7 +114,6 @@ export default function UserManagement() {
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
+    </PageContainer>
   );
 }

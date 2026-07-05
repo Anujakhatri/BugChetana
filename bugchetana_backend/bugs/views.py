@@ -5,11 +5,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.db.models import Count
+from django.utils import timezone
+from django.contrib.auth import get_user_model
+
+from notifications.services import create_notification
 
 from .models import Bug, BugComment, BugHistory, Release, ReleaseBug
 from .serializers import (
     BugSerializer, BugCreateSerializer, BugCommentSerializer, BugHistorySerializer,
-    ReleaseSerializer, QAResultSerializer,
+    ReleaseSerializer, QAResultSerializer, BugAssignSerializer, BugResubmitSerializer,
 )
 from .permissions import (
     IsBugProjectMember,
@@ -27,6 +31,8 @@ from .permissions import (
 import logging
 from ai_integration.ml_service import predict_severity
 logger = logging.getLogger(__name__)
+
+User = get_user_model()
 
 # ─── Bug Views ───────────────────────────────────────────────
 class BugListCreateView(generics.ListCreateAPIView):
@@ -48,7 +54,7 @@ class BugListCreateView(generics.ListCreateAPIView):
         qs = Bug.objects.filter(project_id=project_id)
 
         if role == 'Developer':
-            return qs.filter(assigned_to=user)
+            return (qs.filter(assigned_to=user) | qs.filter(created_by=user)).distinct()
         if role in ('QA', 'Release Manager'):
             return qs
 
@@ -70,7 +76,7 @@ class BugListCreateView(generics.ListCreateAPIView):
         serializer.save(
             created_by=self.request.user,
             project_id=self.kwargs['project_id'],
-            severity=predicted,
+            predicted_severity=predicted,
             ai_status=ai_status,
         )
 
@@ -80,7 +86,7 @@ class BugDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = (IsAuthenticated, IsBugProjectMember, IsBugOwnerOrReleaseManager)
     queryset = Bug.objects.all()
 
-    DEVELOPER_ALLOWED_FIELDS = {'status', 'description'}
+    DEVELOPER_ALLOWED_FIELDS = {'status', 'description', 'title'}
     QA_ALLOWED_FIELDS = {'assigned_to'}
     DEVELOPER_BLOCKED_STATUSES = {'closed'}
 
@@ -153,22 +159,88 @@ class QAResultCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         bug = get_object_or_404(Bug, id=self.kwargs['bug_id'])
 
-        if bug.status != 'resolved':
-            raise ValidationError("Only resolved bugs can be QA tested.")
+        if bug.status not in ('resolved', 'resubmitted'):
+            raise ValidationError("Only resolved or resubmitted bugs can be QA tested.")
 
         qa_result = serializer.save(
             qa=self.request.user,
             bug_id=self.kwargs['bug_id'],
         )
 
+        now = timezone.now()
+        bug.reviewed_by = self.request.user
+        bug.reviewed_at = now
+
         if qa_result.result == 'pass':
             bug.status = 'closed'
             bug.verified_by = self.request.user
+            bug.qa_comment = None
         elif qa_result.result == 'fail':
-            bug.status = 'open'
+            bug.status = 'failed'
+            bug.qa_comment = qa_result.notes
+            bug.verified_by = None
+            if bug.assigned_to:
+                create_notification(
+                    recipient=bug.assigned_to,
+                    message=(
+                        f'Bug "#{bug.id}: {bug.title}" failed QA review. '
+                        f'Comment: {qa_result.notes}'
+                    ),
+                    related_bug=bug,
+                )
 
         bug._changed_by = self.request.user
         bug.save()
+
+
+class BugAssignView(APIView):
+    permission_classes = (IsAuthenticated, CanSubmitQAResult)
+
+    def patch(self, request, pk):
+        bug = get_object_or_404(Bug.objects.select_related('project'), pk=pk)
+        serializer = BugAssignSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        developer = User.objects.get(pk=serializer.validated_data['assigned_to'])
+        bug.assigned_to = developer
+        bug._changed_by = request.user
+        bug.save(update_fields=['assigned_to'])
+
+        create_notification(
+            recipient=developer,
+            message=f'Bug "#{bug.id}: {bug.title}" has been assigned to you.',
+            related_bug=bug,
+        )
+
+        return Response(BugSerializer(bug).data)
+
+
+class BugResubmitView(APIView):
+    permission_classes = (IsAuthenticated, HasBugAccess)
+
+    def post(self, request, pk):
+        bug = get_object_or_404(Bug, pk=pk)
+        role = request.user.role.name if request.user.role else None
+
+        if role != 'Developer' or request.user not in (bug.assigned_to, bug.created_by):
+            raise PermissionDenied('Only the assigned developer can resubmit this bug.')
+        if bug.status != 'failed':
+            raise ValidationError('Only failed bugs can be resubmitted.')
+
+        serializer = BugResubmitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        if 'title' in serializer.validated_data:
+            bug.title = serializer.validated_data['title']
+        if 'description' in serializer.validated_data:
+            bug.description = serializer.validated_data['description']
+
+        bug.status = 'resubmitted'
+        bug.qa_comment = None
+        bug._changed_by = request.user
+        bug.save()
+
+        return Response(BugSerializer(bug).data, status=status.HTTP_200_OK)
 
 
 # ─── Release Views ────────────────────────────────────────────
@@ -222,7 +294,7 @@ class DashboardSummaryView(APIView):
         bugs = Bug.objects.filter(project_id=project_id)
         role = request.user.role.name if request.user.role else None
         if role == 'Developer':
-            bugs = bugs.filter(assigned_to=request.user)
+            bugs = (bugs.filter(assigned_to=request.user) | bugs.filter(created_by=request.user)).distinct()
 
         severity_breakdown = bugs.values('severity').annotate(count=Count('severity'))
 
@@ -230,5 +302,6 @@ class DashboardSummaryView(APIView):
             "total_bugs": bugs.count(),
             "open_bugs": bugs.filter(status='open').count(),
             "resolved_bugs": bugs.filter(status='resolved').count(),
+            "failed_bugs": bugs.filter(status='failed').count(),
             "severity_breakdown": {item['severity']: item['count'] for item in severity_breakdown},
         })

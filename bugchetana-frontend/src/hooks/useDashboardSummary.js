@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '@/api/axiosInstance';
+import { projectUrl } from '@/api/projects.js';
 import { useProject } from '@/context/ProjectContext';
 
 export function useDashboardSummary() {
@@ -12,13 +13,16 @@ export function useDashboardSummary() {
   const projectId = currentProject?.id;
 
   const fetchDashboardData = async () => {
-    if (!projectId) return;
+    if (!projectId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const [summaryRes, bugsRes] = await Promise.all([
-        api.get(`/projects/${projectId}/dashboard/`),
-        api.get(`/projects/${projectId}/bugs/`)
+        api.get(projectUrl(projectId, 'dashboard/')),
+        api.get(projectUrl(projectId, 'bugs/'))
       ]);
       setSummary(summaryRes.data);
       setBugs(bugsRes.data);
