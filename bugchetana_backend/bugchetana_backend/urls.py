@@ -26,4 +26,5 @@ urlpatterns = [
     path("api/", include("bugs.urls")),
 
     path('api/', include('ai_integration.urls')),
+    path('api/', include('notifications.urls')),
 ]

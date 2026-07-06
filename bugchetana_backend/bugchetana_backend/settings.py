@@ -27,11 +27,16 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", False) == "True"
 
 ALLOWED_HOSTS: list[str] = []
 
 CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
@@ -58,6 +63,7 @@ INSTALLED_APPS = [
     "projects",
     "bugs",
     "ai_integration",
+    "notifications",
 ]
 
 MIDDLEWARE = [
@@ -84,6 +90,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES':{
         'anon':'100/hour',
         'user':'500/hour',
+        'guest_ai': '20/hour',
     }
 }
 

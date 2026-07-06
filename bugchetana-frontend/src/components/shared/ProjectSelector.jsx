@@ -27,7 +27,7 @@ export default function ProjectSelector() {
       >
         {availableProjects.map((project) => (
           <option key={project.id} value={project.id}>
-            {project.name} (ID: {project.id})
+            {project.name}
           </option>
         ))}
       </select>

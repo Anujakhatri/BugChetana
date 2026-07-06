@@ -12,9 +12,21 @@ const SEVERITY_STYLES = {
   critical: 'bg-red-50 text-red-700 border-red-200',
 };
 
+function extractApiError(err, fallback) {
+  const data = err.response?.data;
+  if (!data) return fallback;
+  if (typeof data === 'string') return data;
+  if (data.detail) return data.detail;
+  if (data.error) return data.error;
+  const firstKey = Object.keys(data)[0];
+  if (!firstKey) return fallback;
+  const val = data[firstKey];
+  return Array.isArray(val) ? val[0] : String(val);
+}
+
 export default function NewBug() {
   const navigate = useNavigate();
-  const { currentProject } = useProject();
+  const { currentProject, loadingProjects } = useProject();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -40,7 +52,6 @@ export default function NewBug() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!currentProject) {
-      setError("No project selected.");
       return;
     }
 
@@ -54,14 +65,18 @@ export default function NewBug() {
 
     try {
       const bug = await createBug(currentProject.id, formData);
-      setCreatedBug(bug); // shows the success panel instead of navigating immediately
+      console.log('CREATED BUG RESPONSE:', bug)
+
+      setCreatedBug(bug);
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.detail || "Failed to submit bug. Please try again.");
+      setError(extractApiError(err, "Failed to submit bug. Please try again."));
     } finally {
       setLoading(false);
     }
   };
+
+  const canSubmit = Boolean(currentProject) && !loadingProjects;
 
   const handleRoast = async () => {
     if (!createdBug) return;
@@ -191,6 +206,12 @@ export default function NewBug() {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {loadingProjects && (
+            <p className="text-sm text-gray-500">Loading projects...</p>
+          )}
+          {!loadingProjects && !currentProject && (
+            <p className="text-sm text-amber-600 font-medium">No project selected.</p>
+          )}
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium">
               {error}
@@ -231,21 +252,21 @@ export default function NewBug() {
             </div>
 
             <div>
-              <label htmlFor="severity" className="block text-sm font-medium text-gray-700 mb-1">
-                Severity <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="severity"
-                name="severity"
-                value={formData.severity}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-shadow"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
+              {/*<label htmlFor="severity" className="block text-sm font-medium text-gray-700 mb-1">*/}
+              {/*  Severity <span className="text-red-500">*</span>*/}
+              {/*</label>*/}
+              {/*<select*/}
+              {/*  id="severity"*/}
+              {/*  name="severity"*/}
+              {/*  value={formData.severity}*/}
+              {/*  onChange={handleChange}*/}
+              {/*  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-shadow"*/}
+              {/*>*/}
+              {/*  <option value="low">Low</option>*/}
+              {/*  <option value="medium">Medium</option>*/}
+              {/*  <option value="high">High</option>*/}
+              {/*  <option value="critical">Critical</option>*/}
+              {/*</select>*/}
               <p className="text-xs text-gray-400 mt-1">
                 AI will also suggest a severity automatically once submitted.
               </p>
@@ -255,7 +276,7 @@ export default function NewBug() {
           <div className="pt-4 border-t border-gray-100 flex justify-end">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !canSubmit}
               className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {loading ? (

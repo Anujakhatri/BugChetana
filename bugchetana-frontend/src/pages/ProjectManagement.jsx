@@ -4,6 +4,8 @@ import {
   getProjects, createProject, updateProject, deleteProject,
   getProjectMembers, addProjectMember, removeProjectMember,
 } from '@/api/projects';
+import { getUsers } from '@/api/users';
+import PageContainer from '@/components/layout/PageContainer';
 import { Plus, Trash2, Users, Loader2, X, Pencil } from 'lucide-react';
 
 export default function ProjectManagement() {
@@ -16,6 +18,9 @@ export default function ProjectManagement() {
 
   // create form
   const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [selectedQaIds, setSelectedQaIds] = useState([]);
+  const [qaOptions, setQaOptions] = useState([]);
   const [creating, setCreating] = useState(false);
 
   // inline rename
@@ -28,6 +33,9 @@ export default function ProjectManagement() {
   const [membersLoading, setMembersLoading] = useState(false);
   const [newMemberUserId, setNewMemberUserId] = useState('');
   const [memberError, setMemberError] = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -45,16 +53,25 @@ export default function ProjectManagement() {
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects]);
+    if (isRM) {
+      getUsers({ role: 'QA' }).then(setQaOptions).catch(console.error);
+    }
+  }, [loadProjects, isRM]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      const project = await createProject({ name: newName.trim() });
+      const project = await createProject({
+        name: newName.trim(),
+        description: newDescription.trim() || undefined,
+        qa_ids: selectedQaIds.map(Number),
+      });
       setProjects([...projects, project]);
       setNewName('');
+      setNewDescription('');
+      setSelectedQaIds([]);
     } catch (err) {
       console.error(err);
       setError('Failed to create project.');
@@ -98,9 +115,18 @@ export default function ProjectManagement() {
     setExpandedId(projectId);
     setMembersLoading(true);
     setMemberError(null);
+    setNewMemberUserId('');
+    setMemberSearchQuery('');
+    setIsComboboxOpen(false);
     try {
-      const data = await getProjectMembers(projectId);
+      const [data, devUsers, qaUsers] = await Promise.all([
+          getProjectMembers(projectId),
+        getUsers({ role: 'Developer' }),
+        getUsers({ role: 'QA' }),
+      ]);
       setMembers(data);
+      setAllUsers([...devUsers, ...qaUsers]);
+
     } catch (err) {
       console.error(err);
       setMemberError('Failed to load members.');
@@ -116,6 +142,7 @@ export default function ProjectManagement() {
       const newMember = await addProjectMember(projectId, newMemberUserId.trim());
       setMembers([...members, newMember.member || newMember]);
       setNewMemberUserId('');
+      setMemberSearchQuery('');
       setProjects(projects.map(p =>
         p.id === projectId ? { ...p, member_count: p.member_count + 1 } : p
       ));
@@ -147,28 +174,53 @@ export default function ProjectManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto space-y-6">
+    <PageContainer maxWidth="3xl">
         <h1 className="text-xl font-semibold text-gray-900">Projects</h1>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         {/* Create — RM only (backend also enforces this via IsReleaseManager on POST) */}
         {isRM && (
-          <form onSubmit={handleCreate} className="bg-white rounded-xl border border-gray-200 p-4 flex gap-2">
+          <form onSubmit={handleCreate} className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="New project name"
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             />
+            <textarea
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              placeholder="Project description (optional)"
+              rows={3}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+            {qaOptions.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Assign QA</label>
+                <select
+                  multiple
+                  value={selectedQaIds}
+                  onChange={(e) =>
+                    setSelectedQaIds(Array.from(e.target.selectedOptions, (o) => o.value))
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[88px]"
+                >
+                  {qaOptions.map((qa) => (
+                    <option key={qa.id} value={qa.id}>
+                      {qa.name} ({qa.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button
               type="submit"
               disabled={creating}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
             >
               {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Create
+              Create Project
             </button>
           </form>
         )}
@@ -183,7 +235,7 @@ export default function ProjectManagement() {
             const canManage = isRM && isOwnProject;
 
             return (
-              <div key={project.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div key={project.id} className="bg-white rounded-xl border border-gray-200">
                 <div className="p-4 flex items-center justify-between gap-3">
                   {editingId === project.id ? (
                     <input
@@ -261,22 +313,69 @@ export default function ProjectManagement() {
                           </div>
                         ))}
 
-                        {canManage && (
-                          <div className="flex gap-2 pt-2">
-                            <input
-                              value={newMemberUserId}
-                              onChange={(e) => setNewMemberUserId(e.target.value)}
-                              placeholder="User ID to add"
-                              className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-                            />
-                            <button
-                              onClick={() => handleAddMember(project.id)}
-                              className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-sm font-medium"
-                            >
-                              Add
-                            </button>
-                          </div>
-                        )}
+                        {canManage && (() => {
+                          const memberUserIds = new Set(members.map(m => m.user));
+                          const availableUsers = allUsers
+                            .filter(u => !memberUserIds.has(u.id))
+                            .filter(u => {
+                              if (!memberSearchQuery) return true;
+                              const q = memberSearchQuery.toLowerCase();
+                              return (
+                                u.name?.toLowerCase().includes(q) ||
+                                u.email?.toLowerCase().includes(q)
+                              );
+                            });
+
+                          return (
+                            <div className="space-y-2 pt-2">
+                              <label className="block text-xs font-medium text-gray-500">Add member</label>
+                              <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                  <input
+                                    value={memberSearchQuery}
+                                    onChange={(e) => {
+                                      setMemberSearchQuery(e.target.value);
+                                      setNewMemberUserId('');
+                                      setIsComboboxOpen(true);
+                                    }}
+                                    onFocus={() => setIsComboboxOpen(true)}
+                                    onBlur={() => setTimeout(() => setIsComboboxOpen(false), 200)}
+                                    placeholder="Search by name or email…"
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                                  />
+                                  {isComboboxOpen && availableUsers.length > 0 && (
+                                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                      {availableUsers.map((u) => (
+                                        <button
+                                          key={u.id}
+                                          onClick={() => {
+                                            setNewMemberUserId(String(u.id));
+                                            setMemberSearchQuery(`${u.name} (${u.email})`);
+                                            setIsComboboxOpen(false);
+                                          }}
+                                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                                        >
+                                          {u.name} <span className="text-gray-400">({u.email})</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {isComboboxOpen && availableUsers.length === 0 && (
+                                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-sm text-gray-500">
+                                      {memberSearchQuery ? 'No matching users found.' : 'All users are already members.'}
+                                    </div>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => handleAddMember(project.id)}
+                                  className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-sm font-medium whitespace-nowrap"
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </>
                     )}
                   </div>
@@ -285,7 +384,6 @@ export default function ProjectManagement() {
             );
           })}
         </div>
-      </div>
-    </div>
+    </PageContainer>
   );
 }

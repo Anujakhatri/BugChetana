@@ -15,7 +15,7 @@ try:
 except Exception as e:
     _client_error = e
 
-DEFAULT_MODEL = "openai/gpt-oss-20b"
+DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
 
 def _chat(system_prompt: str, user_prompt: str, max_tokens: int = 300) -> str:
@@ -29,7 +29,7 @@ def _chat(system_prompt: str, user_prompt: str, max_tokens: int = 300) -> str:
                  {"role": "system", "content": system_prompt},
                  {"role": "user", "content": user_prompt},
             ],
-            max_completion_tokens=max_tokens,
+            max_tokens=max_tokens,
             temperature=0.7,
         )
         content = completion.choices[0].message.content

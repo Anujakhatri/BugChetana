@@ -11,6 +11,13 @@ function extractLockoutMinutes(message) {
   return match ? parseInt(match[1], 10) : null;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function getEmailValidationError(value) {
+  if (!value.trim()) return '';
+  return EMAIL_REGEX.test(value.trim()) ? '' : 'Please enter a valid email address.';
+}
+
 export default function Login() {
   // backend connection ko lagi chaini
   const { setUser } = useAuth();  //global user set garna
@@ -21,6 +28,8 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
 
   // Lockout state
   const [lockedUntil, setLockedUntil] = useState(null); // Date object or null
@@ -56,6 +65,13 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isLocked) return;
+
+    const validationError = getEmailValidationError(email);
+    if (validationError) {
+      setEmailTouched(true);
+      setEmailError(validationError);
+      return;
+    }
 
     {/* ui ma actual backend ko data lyaune */ }
     try {
@@ -95,15 +111,30 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <InputField
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email"
-            required
-            disabled={isLocked}
-          />
+          <div className="space-y-1 w-full">
+            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (emailTouched) {
+                  setEmailError(getEmailValidationError(e.target.value));
+                }
+              }}
+              onBlur={() => {
+                setEmailTouched(true);
+                setEmailError(getEmailValidationError(email));
+              }}
+              placeholder="Enter your email"
+              required
+              disabled={isLocked}
+              className="border border-gray-200 rounded-lg py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 px-4"
+            />
+            {emailError && (
+              <p className="text-sm text-red-500">{emailError}</p>
+            )}
+          </div>
 
           <InputField
             label="Password"

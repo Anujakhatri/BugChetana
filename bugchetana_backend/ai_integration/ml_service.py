@@ -24,15 +24,20 @@ except Exception as e:
 
 
 def predict_severity(title: str, description: str) -> str:
+    """Return predicted severity label only. See predict_severity_with_confidence."""
+    severity, _confidence = predict_severity_with_confidence(title, description)
+    return severity
+
+
+def predict_severity_with_confidence(title: str, description: str) -> tuple[str, float]:
     """
     Predict bug severity from title + description.
 
-    Returns a lowercase string matching Bug.SEVERITY_CHOICES:
-    'low' | 'medium' | 'high' | 'critical'.
+    Returns (severity, confidence) where severity is a lowercase string matching
+    Bug.SEVERITY_CHOICES and confidence is the model's max class probability (0–1).
 
     Raises RuntimeError / ValueError on failure — this function does NOT
-    silently fall back. The caller (BugListCreateView) decides what the
-    fallback should be.
+    silently fall back. The caller decides what the fallback should be.
     """
     if _model is None or _vectorizer is None or _label_encoder is None:
         raise RuntimeError(f"ML model artifacts not loaded: {_load_error}")
@@ -45,4 +50,9 @@ def predict_severity(title: str, description: str) -> str:
     prediction = _model.predict(vector)
     label = _label_encoder.inverse_transform(prediction)[0]  # e.g. 'High'
 
-    return label.lower()
+    confidence = 0.0
+    if hasattr(_model, 'predict_proba'):
+        proba = _model.predict_proba(vector)[0]
+        confidence = float(max(proba))
+
+    return label.lower(), round(confidence, 4)

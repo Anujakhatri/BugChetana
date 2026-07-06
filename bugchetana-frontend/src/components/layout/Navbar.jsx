@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Bug, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import NotificationBell from '@/components/shared/NotificationBell';
+import bugchetanaIcon from '@/assets/bugchetana-icon.svg';
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -29,14 +31,10 @@ export default function Navbar() {
     }
   };
 
-  const handleLogoClick = () => {
+  const handleLogoClick = (e) => {
     if (location.pathname === '/') {
+      e.preventDefault();
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      navigate('/');
-      setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 100);
     }
   };
 
@@ -50,17 +48,37 @@ export default function Navbar() {
 
   const canSubmitBug = user?.roleName === 'Developer' || user?.roleName === 'Release Manager';
   const isRM = user?.roleName === 'Release Manager';
+  const isQA = user?.roleName === 'QA';
+  const showNotifications = user?.roleName === 'Developer' || isQA;
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/90 backdrop-blur-md shadow-sm border-b border-slate-200' : 'bg-transparent'
         }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto lg:mx-0 lg:mr-auto">
         <div className="flex justify-between items-center h-16">
-          <button onClick={handleLogoClick} className="flex items-center space-x-2 focus:outline-none">
-            <Bug className="h-6 w-6 text-blue-600" />
-            <span className="font-bold text-xl tracking-tight text-slate-900">BugChetana</span>
-          </button>
+          <Link
+            to="/"
+            onClick={handleLogoClick}
+            className="group flex items-center gap-2 sm:gap-3 shrink-0 min-w-0 rounded-md transition-opacity duration-200 hover:opacity-85 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            aria-label="BugChetana home"
+          >
+            <img
+              src={bugchetanaIcon}
+              alt="BugChetana logo"
+              width={40}
+              height={40}
+              className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 object-contain"
+            />
+            <div className="flex min-w-0 flex-col justify-center leading-none">
+              <span className="truncate font-bold text-base sm:text-lg tracking-tight text-slate-900">
+                Bug<span className="text-[#185FA5]">Chetana</span>
+              </span>
+              <span className="mt-0.5 truncate text-[10px] sm:text-xs leading-tight text-slate-500">
+                AI-powered bug intelligence
+              </span>
+            </div>
+          </Link>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-8">
@@ -68,6 +86,9 @@ export default function Navbar() {
               <>
                 <button onClick={() => handleSectionClick('features')} className="text-slate-600 hover:text-blue-600 font-medium transition-colors">Features</button>
                 <button onClick={() => handleSectionClick('how-it-works')} className="text-slate-600 hover:text-blue-600 font-medium transition-colors">How It Works</button>
+                <Link to="/submit-bug" className="flex items-center gap-1.5 text-slate-600 hover:text-blue-600 font-medium transition-colors">
+                  Submit Bug
+                </Link>
                 <Link to="/login" className="text-slate-600 hover:text-blue-600 font-medium transition-colors">Login</Link>
                 <Link
                   to="/register"
@@ -78,16 +99,25 @@ export default function Navbar() {
               </>
             ) : (
               <>
+                <Link to="/dashboard" className="text-slate-600 hover:text-blue-600 font-medium transition-colors mr-2">Dashboard</Link>
                 {isRM && (
                   <>
                     <Link to="/projects" className="text-slate-600 hover:text-blue-600 font-medium transition-colors mr-2">Projects</Link>
                     <Link to="/users" className="text-slate-600 hover:text-blue-600 font-medium transition-colors mr-2">Users</Link>
                   </>
                 )}
+                {isQA && (
+                  <Link to="/developers" className="text-slate-600 hover:text-blue-600 font-medium transition-colors mr-2">Developers</Link>
+                )}
                 
                 {canSubmitBug && (
-                  <Link to="/bugs/new" className="text-slate-600 hover:text-blue-600 font-medium transition-colors mr-2">Submit Bug</Link>
+                  <Link to="/bugs/new" className="flex items-center gap-1.5 text-slate-600 hover:text-blue-600 font-medium transition-colors mr-2">
+                    <Bug className="h-4 w-4" />
+                    Submit Bug
+                  </Link>
                 )}
+
+                {showNotifications && <NotificationBell />}
 
                 {/* Profile Dropdown */}
                 <div className="flex items-center space-x-3">
@@ -141,6 +171,14 @@ export default function Navbar() {
                   How It Works
                 </button>
                 <Link
+                  to="/submit-bug"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
+                >
+                  <Bug className="h-4 w-4" />
+                  Submit Bug
+                </Link>
+                <Link
                   to="/login"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
@@ -167,6 +205,14 @@ export default function Navbar() {
                   </div>
                 </div>
 
+                <Link
+                  to="/dashboard"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
+                >
+                  Dashboard
+                </Link>
+
                 {isRM && (
                   <>
                     <Link
@@ -186,12 +232,23 @@ export default function Navbar() {
                   </>
                 )}
 
+                {isQA && (
+                  <Link
+                    to="/developers"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
+                  >
+                    Developers
+                  </Link>
+                )}
+
                 {canSubmitBug && (
                   <Link
                     to="/bugs/new"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
+                    className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
                   >
+                    <Bug className="h-4 w-4" />
                     Submit Bug
                   </Link>
                 )}

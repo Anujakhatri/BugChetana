@@ -5,6 +5,13 @@ import InputField from '@/components/shared/InputField.jsx';
 import OAuthButtons from '@/components/shared/OAuthButtons.jsx';
 import { registerUser } from "@/api/authService.js";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function getEmailValidationError(value) {
+  if (!value.trim()) return '';
+  return EMAIL_REGEX.test(value.trim()) ? '' : 'Please enter a valid email address.';
+}
+
 export default function Register() {
   //added variable required to backend
   const navigate = useNavigate();
@@ -16,9 +23,19 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const validationError = getEmailValidationError(email);
+    if (validationError) {
+      setEmailTouched(true);
+      setEmailError(validationError);
+      return;
+    }
+
     //Step 1: Frontend validation check before sent to backend
     if (!agreeTerms) {
       setError("Please agree to the Terms of Service and Privacy Policy.");
@@ -82,14 +99,29 @@ export default function Register() {
             required
           />
 
-          <InputField
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email"
-            required
-          />
+          <div className="space-y-1 w-full">
+            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (emailTouched) {
+                  setEmailError(getEmailValidationError(e.target.value));
+                }
+              }}
+              onBlur={() => {
+                setEmailTouched(true);
+                setEmailError(getEmailValidationError(email));
+              }}
+              placeholder="Enter your email"
+              required
+              className="border border-gray-200 rounded-lg py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 px-4"
+            />
+            {emailError && (
+              <p className="text-sm text-red-500">{emailError}</p>
+            )}
+          </div>
 
           <div className="space-y-1">
             <InputField

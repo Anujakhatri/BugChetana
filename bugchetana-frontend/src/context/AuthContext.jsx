@@ -15,7 +15,6 @@ export const AuthProvider = ({ children }) => {
     // The backend sends user.role as a nested object (e.g., { id: 1, name: "Developer" }). We normalize it to a flat string roleName.
     const rawRole = typeof userData.role === 'object' && userData.role !== null ? userData.role.name : userData.role;
     const roleName = (rawRole || "");
-    
     setUserRaw({ ...userData, roleName });
   };
 
@@ -34,7 +33,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     const refresh = localStorage.getItem("refresh");
-    await logoutUser(refresh).catch(() => {});   //server ma token blacklist huncha
+    await logoutUser(refresh).catch(() => { });   //server ma token blacklist huncha
     localStorage.clear();
     setUser(null);
   };

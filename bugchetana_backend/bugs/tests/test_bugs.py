@@ -181,6 +181,56 @@ def test_dashboard_summary_view(api_client, rm_user, token_project, setup_member
     assert response.data['severity_breakdown'] == {'medium': 1}
 
 
+def _bug_list_count(response):
+    if 'results' in response.data:
+        return len(response.data['results'])
+    return len(response.data)
+
+
+def test_developer_cannot_get_unassigned_bug_detail(
+    api_client, dev_user2, token_project, setup_members, token_bug, get_tokens
+):
+    """Developer project member but not assigned and not creator -> 403 on detail GET."""
+    tokens = get_tokens(dev_user2.email)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    url = reverse('bug-detail', kwargs={'pk': token_bug.id})
+    response = api_client.get(url)
+    assert response.status_code == 403
+
+
+def test_developer_dashboard_count_matches_bug_list(
+    api_client, dev_user, dev_user2, token_project, setup_members, token_bug, get_tokens
+):
+    """Dashboard summary and bug list use the same assigned_to-only visibility for Developers."""
+    # Second bug: created by dev_user2, assigned to dev_user2 — invisible to dev_user
+    Bug.objects.create(
+        title="Other Dev Bug",
+        description="Assigned elsewhere",
+        project=token_project,
+        created_by=dev_user2,
+        assigned_to=dev_user2,
+        status="open",
+        severity="high",
+    )
+
+    tokens = get_tokens(dev_user.email)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    list_url = reverse('bug-list-create', kwargs={'project_id': token_project.id})
+    dashboard_url = reverse('dashboard-summary', kwargs={'project_id': token_project.id})
+
+    list_response = api_client.get(list_url)
+    dashboard_response = api_client.get(dashboard_url)
+
+    assert list_response.status_code == 200
+    assert dashboard_response.status_code == 200
+
+    list_count = _bug_list_count(list_response)
+    dashboard_count = dashboard_response.data['total_bugs']
+    assert list_count == dashboard_count == 1
+
+
 class TestBugCreate:
     def test_developer_can_create_bug(self, dev_client, project_with_members):
         response = dev_client.post(

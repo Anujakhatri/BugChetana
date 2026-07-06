@@ -10,6 +10,8 @@ class Bug(models.Model):
         ('in_progress', 'In Progress'),
         ('resolved', 'Resolved'),
         ('closed', 'Closed'),
+        ('failed', 'Failed'),
+        ('resubmitted', 'Resubmitted'),
     ]
 
     SEVERITY_CHOICES = [
@@ -74,6 +76,15 @@ class Bug(models.Model):
         blank=True,
         related_name='verified_bugs'
     )
+    qa_comment = models.TextField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_bugs'
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

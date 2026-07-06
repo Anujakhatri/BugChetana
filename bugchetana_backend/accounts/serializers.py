@@ -119,7 +119,7 @@ class LoginSerializer(TokenObtainPairSerializer):
                 )
             user.save(update_fields=['failed_login_attempts', 'locked_until'])
             raise AuthenticationFailed(
-                f"Account locked due to too many failed attempts. "
+                "Incorrect password. Please try again."
             )
         # success
         if user.failed_login_attempts or user.locked_until:
@@ -153,17 +153,15 @@ class LogoutSerializer(serializers.Serializer):
 
     def save(self):
         try:
-            token_hash = hashlib.sha256(self.token.encode('utf-8')).hexdigest()
-
-            # Delete session
-            UserSession.objects.filter(refresh_token_hash=token_hash).delete()
-
-            # Blacklist the JWT
             RefreshToken(self.token).blacklist()
-
         except TokenError:
             raise serializers.ValidationError(
-                {"refresh": "Refresh token is invalid or expired"})
+                {"refresh": "Refresh token is invalid or expired"}
+            )
+        token_hash = hashlib.sha256(self.token.encode('utf-8')).hexdigest()
+
+        # Delete session
+        UserSession.objects.filter(refresh_token_hash=token_hash).delete()
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -194,10 +192,15 @@ class RoleUpdateSerializer(serializers.Serializer):
 
 # User list which can see all users by Release Manager
 class UserListSerializer(serializers.ModelSerializer):
-    role=serializers.StringRelatedField()
+    role = serializers.StringRelatedField()
+    assigned_bug_count = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'name', 'role', 'status','created_at')
+        fields = ('id', 'username', 'email', 'name', 'role', 'status', 'created_at', 'assigned_bug_count')
+
+    def get_assigned_bug_count(self, obj):
+        return getattr(obj, 'assigned_bug_count', 0)
 
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:

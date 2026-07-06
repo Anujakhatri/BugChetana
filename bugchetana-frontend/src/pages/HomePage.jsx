@@ -5,6 +5,7 @@ import {
   ArrowRight, ShieldCheck, Database, GitPullRequest
 } from 'lucide-react';
 import { FeatureCard } from '@/components/shared/CoreFeatures.jsx';
+import bugchetanaIcon from '@/assets/bugchetana-icon.svg';
 
 // Custom SVG Icons for brands (since lucide-react removed them)
 const GithubIcon = ({ className }) => (
@@ -44,6 +45,12 @@ export default function HomePage() {
             className="flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-3.5 rounded-lg font-medium text-lg hover:bg-blue-700 transition-colors shadow-sm"
           >
             Get Started <ArrowRight className="h-5 w-5" />
+          </Link>
+          <Link
+            to="/submit-bug"
+            className="flex items-center justify-center bg-white text-slate-700 border border-slate-300 px-8 py-3.5 rounded-lg font-medium text-lg hover:bg-slate-50 transition-colors"
+          >
+            Try Bug Prediction
           </Link>
           <a
             href="#features"
@@ -167,7 +174,7 @@ export default function HomePage() {
       <footer className="bg-slate-900 py-12 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3">
-            <Bug className="h-6 w-6 text-blue-400" />
+            <img src={bugchetanaIcon} alt="BugChetana" className="h-6 w-6 object-contain" />
             <span className="text-white font-bold text-lg">BugChetana</span>
             <span className="text-slate-500 hidden sm:inline">|</span>
             <span className="text-slate-400 text-sm">Built by Anu</span>

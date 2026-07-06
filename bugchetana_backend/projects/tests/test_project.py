@@ -5,6 +5,9 @@ from django.urls import reverse
 @pytest.mark.django_db
 class TestProjectListCreateView:
 
+    def test_projects_list_url_matches_frontend(self):
+        assert reverse('projects-list-create') == '/api/projects/'
+
     # release_manager can create a project
     def test_rm_can_create_project(self, api_client, make_user, rm_role, get_tokens):
         rm_user = make_user('rm', 'rm@test.com', role=rm_role)

@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     BugListCreateView, BugDetailView,
     BugCommentListCreateView, BugHistoryListView,
-    QAResultCreateView,
+    QAResultCreateView, BugAssignView, BugResubmitView,
     ReleaseListCreateView, AddBugToReleaseView,
     DashboardSummaryView
 )
@@ -14,6 +14,8 @@ urlpatterns = [
     # Bugs
     path('projects/<int:project_id>/bugs/', BugListCreateView.as_view(), name='bug-list-create'),
     path('bugs/<int:pk>/', BugDetailView.as_view(), name='bug-detail'),
+    path('bugs/<int:pk>/assign/', BugAssignView.as_view(), name='bug-assign'),
+    path('bugs/<int:pk>/resubmit/', BugResubmitView.as_view(), name='bug-resubmit'),
 
     # Comments
     path('bugs/<int:bug_id>/comments/', BugCommentListCreateView.as_view(), name='bug-comments'),

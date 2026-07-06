@@ -1,6 +1,6 @@
 import hashlib
 from urllib.request import Request
-from .permissions import IsAdmin, IsAdminOrReleaseManager
+from .permissions import IsAdmin, IsAdminOrReleaseManager, IsStaffOrReleaseManagerOrQA
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework import status, generics
@@ -17,6 +17,7 @@ from .serializers import (
 from .models import UserSession, Role
 
 from django.contrib.auth import get_user_model
+from django.db.models import Count
 
 User = get_user_model()
 
@@ -110,7 +111,7 @@ class ProfileView(APIView):
 
 #Role update by release manager only
 class RoleUpdateView(APIView):
-    permission_classes = (IsAuthenticated,IsAdmin)
+    permission_classes = (IsAuthenticated,IsAdmin, IsAdminOrReleaseManager)
 
     def patch(self, request, pk):
         try:
@@ -133,13 +134,19 @@ class RoleUpdateView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-#admin and release manager can see everyone
+# Staff, release managers, and QA can list users (optionally filtered by role)
 class UserListView(generics.ListAPIView):
     serializer_class = UserListSerializer
-    permission_classes = (IsAuthenticated, IsAdmin, IsAdminOrReleaseManager)
+    permission_classes = (IsAuthenticated, IsStaffOrReleaseManagerOrQA)
 
     def get_queryset(self):
-        return User.objects.select_related('role').order_by('created_at')
+        qs = User.objects.select_related('role').annotate(
+            assigned_bug_count=Count('assigned_bugs'),
+        ).order_by('created_at')
+        role_filter = self.request.query_params.get('role')
+        if role_filter:
+            qs = qs.filter(role__name__iexact=role_filter)
+        return qs
 
 class RoleListView(generics.ListAPIView):
     """
