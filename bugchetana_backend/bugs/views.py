@@ -54,7 +54,7 @@ class BugListCreateView(generics.ListCreateAPIView):
         qs = Bug.objects.filter(project_id=project_id)
 
         if role == 'Developer':
-            return (qs.filter(assigned_to=user) | qs.filter(created_by=user)).distinct()
+            return qs.filter(assigned_to=user)
         if role in ('QA', 'Release Manager'):
             return qs
 
