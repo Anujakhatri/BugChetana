@@ -63,7 +63,7 @@ class BugCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bug
         fields = (
-            'title', 'description', 'status', 'severity', 'priority', 'assigned_to', 'predicted_severity', 'roast_commentary', 'ai_status',
+            'id', 'title', 'description', 'status', 'severity', 'priority', 'assigned_to', 'predicted_severity', 'roast_commentary', 'ai_status',
         )
         read_only_fields = ('predicted_severity', 'ai_status')
 

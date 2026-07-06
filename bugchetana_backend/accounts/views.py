@@ -111,7 +111,7 @@ class ProfileView(APIView):
 
 #Role update by release manager only
 class RoleUpdateView(APIView):
-    permission_classes = (IsAuthenticated,IsAdmin)
+    permission_classes = (IsAuthenticated,IsAdmin, IsAdminOrReleaseManager)
 
     def patch(self, request, pk):
         try:

@@ -15,6 +15,7 @@ from .serializers import (
     BugSerializer, BugCreateSerializer, BugCommentSerializer, BugHistorySerializer,
     ReleaseSerializer, QAResultSerializer, BugAssignSerializer, BugResubmitSerializer,
 )
+from .access import visible_bugs_for
 from .permissions import (
     IsBugProjectMember,
     IsBugOwnerOrReleaseManager,
@@ -47,18 +48,10 @@ class BugListCreateView(generics.ListCreateAPIView):
         return [IsAuthenticated(), HasProjectAccess()]
 
     def get_queryset(self):
-        user = self.request.user
-        role = user.role.name if user.role else None
-        project_id = self.kwargs.get('project_id')
-
-        qs = Bug.objects.filter(project_id=project_id)
-
-        if role == 'Developer':
-            return qs.filter(assigned_to=user)
-        if role in ('QA', 'Release Manager'):
-            return qs
-
-        return qs.none()
+        return visible_bugs_for(
+            self.request.user,
+            project_id=self.kwargs.get('project_id'),
+        )
 
     def perform_create(self, serializer):
         title = serializer.validated_data.get('title', '')
@@ -291,11 +284,7 @@ class DashboardSummaryView(APIView):
     permission_classes = (IsAuthenticated, HasProjectAccess)
 
     def get(self, request, project_id):
-        bugs = Bug.objects.filter(project_id=project_id)
-        role = request.user.role.name if request.user.role else None
-        if role == 'Developer':
-            bugs = (bugs.filter(assigned_to=request.user) | bugs.filter(created_by=request.user)).distinct()
-
+        bugs = visible_bugs_for(request.user, project_id=project_id)
         severity_breakdown = bugs.values('severity').annotate(count=Count('severity'))
 
         return Response({

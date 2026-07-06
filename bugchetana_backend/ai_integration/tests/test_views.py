@@ -24,7 +24,7 @@ def test_predict_severity_includes_display_message_low_confidence(mock_predict, 
     assert response.data['severity'] == 'high'
     assert response.data['confidence'] == 0.35
     assert response.data['display_message'] == (
-        'Predicted: High (Low confidence — please review manually)'
+        'Predicted: High (35% confidence — please review manually)'
     )
 
 
@@ -38,7 +38,7 @@ def test_predict_severity_includes_display_message_high_confidence(mock_predict,
     response = PredictSeverityView.as_view()(request)
 
     assert response.status_code == 200
-    assert response.data['display_message'] == 'Predicted: Medium'
+    assert response.data['display_message'] == 'Predicted: Medium (72%)'
 
 
 @patch('ai_integration.views.suggest_fix', return_value='Check null guards in auth handler.')

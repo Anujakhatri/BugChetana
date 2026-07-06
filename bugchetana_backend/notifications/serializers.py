@@ -3,8 +3,8 @@ from .models import Notification
 
 
 class NotificationSerializer(serializers.ModelSerializer):
-    related_bug_id = serializers.IntegerField(source='related_bug_id', read_only=True)
-    related_project_id = serializers.IntegerField(source='related_project_id', read_only=True)
+    related_bug_id = serializers.IntegerField(read_only=True)
+    related_project_id = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Notification

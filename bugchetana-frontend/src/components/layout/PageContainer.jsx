@@ -22,7 +22,7 @@ export default function PageContainer({
       className={`min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8 py-4 md:py-8 ${className}`.trim()}
     >
       <div
-        className={`w-full ${maxWidthClass} mx-auto lg:mx-0 lg:mr-auto space-y-6 ${innerClassName}`.trim()}
+        className={`w-full ${maxWidthClass} mx-auto space-y-6 ${innerClassName}`.trim()}
       >
         {children}
       </div>

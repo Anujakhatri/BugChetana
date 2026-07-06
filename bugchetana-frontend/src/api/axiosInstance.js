@@ -17,11 +17,12 @@ api.interceptors.response.use(
     const original = error.config;
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
+
       const refresh = localStorage.getItem("refresh");
       if (refresh) {
         try {
           const { data } = await axios.post(
-            "http://localhost:8000/api/token/refresh/",
+            "http://localhost:8000/api/auth/login/refresh/",
             { refresh }
           );
           localStorage.setItem("access", data.access);

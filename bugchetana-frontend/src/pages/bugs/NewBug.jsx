@@ -65,6 +65,8 @@ export default function NewBug() {
 
     try {
       const bug = await createBug(currentProject.id, formData);
+      console.log('CREATED BUG RESPONSE:', bug)
+
       setCreatedBug(bug);
     } catch (err) {
       console.error(err);
@@ -250,21 +252,21 @@ export default function NewBug() {
             </div>
 
             <div>
-              <label htmlFor="severity" className="block text-sm font-medium text-gray-700 mb-1">
-                Severity <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="severity"
-                name="severity"
-                value={formData.severity}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-shadow"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
+              {/*<label htmlFor="severity" className="block text-sm font-medium text-gray-700 mb-1">*/}
+              {/*  Severity <span className="text-red-500">*</span>*/}
+              {/*</label>*/}
+              {/*<select*/}
+              {/*  id="severity"*/}
+              {/*  name="severity"*/}
+              {/*  value={formData.severity}*/}
+              {/*  onChange={handleChange}*/}
+              {/*  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-shadow"*/}
+              {/*>*/}
+              {/*  <option value="low">Low</option>*/}
+              {/*  <option value="medium">Medium</option>*/}
+              {/*  <option value="high">High</option>*/}
+              {/*  <option value="critical">Critical</option>*/}
+              {/*</select>*/}
               <p className="text-xs text-gray-400 mt-1">
                 AI will also suggest a severity automatically once submitted.
               </p>

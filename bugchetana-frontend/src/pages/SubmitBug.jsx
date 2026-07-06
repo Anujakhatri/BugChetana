@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bug, Sparkles, Loader2, Flame, Wrench } from 'lucide-react';
 import { predictSeverity, guestAiReview } from '@/api/ai';
-import PageContainer from '@/components/layout/PageContainer';
+import bugchetanaIcon from '@/assets/bugchetana-icon.svg';
 
 const SEVERITY_STYLES = {
   low: 'bg-green-50 text-green-700 border-green-200',
@@ -88,10 +88,11 @@ export default function SubmitBug() {
   const canReview = Boolean(prediction) && !predictLoading;
 
   return (
-    <PageContainer maxWidth="2xl" className="bg-slate-50 pt-24 pb-16">
+    <div className="min-h-screen bg-slate-50 px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+      <div className="w-full max-w-2xl mx-auto space-y-6">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-blue-100 mb-4">
-            <Bug className="h-7 w-7 text-blue-600" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-blue-100 mb-4 overflow-hidden">
+            <img src={bugchetanaIcon} alt="BugChetana" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900">Try Bug Prediction</h1>
           <p className="text-slate-600 mt-2">
@@ -228,6 +229,7 @@ export default function SubmitBug() {
           </Link>
           .
         </p>
-    </PageContainer>
+      </div>
+    </div>
   );
 }

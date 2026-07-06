@@ -34,7 +34,7 @@ export default function Dashboard() {
   const { user } = useAuth();
 
   const renderDashboardContent = () => {
-    switch (user?.role) {
+    switch (user?.roleName) {
       case "Developer":       return <DeveloperDashboard />;
       case "QA":              return <QaDashboard />;
       case "Release Manager": return <ReleaseManagerDashboard />;

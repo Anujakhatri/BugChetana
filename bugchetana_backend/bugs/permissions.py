@@ -1,10 +1,11 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 from accounts.permissions import get_role
 from projects.permissions import(
     is_project_release_manager,
     is_project_member,
     can_view_project,
 )
+from .access import can_view_bug
 
 class IsAssignedDeveloper(BasePermission):
     def has_object_permission(self, request, view, obj):
@@ -18,10 +19,14 @@ class IsBugProjectMember(BasePermission):
         return bool(request.user and request.user.is_authenticated)
 
     def has_object_permission(self, request, view, obj):
+        from bugs.models import Bug
+
+        if isinstance(obj, Bug) and request.method in SAFE_METHODS:
+            return can_view_bug(request.user, obj)
+
         project = getattr(obj, 'project', None)
         if not project:
             return False
-
         return can_view_project(request.user, project)
 
 class IsBugOwnerOrReleaseManager(BasePermission):
@@ -90,7 +95,7 @@ class HasBugAccess(BasePermission):
             bug = Bug.objects.select_related('project').get(pk=bug_id)
         except Bug.DoesNotExist:
             return False
-        return can_view_project(request.user, bug.project)
+        return can_view_bug(request.user, bug)
 
 class CanCreateBug(HasProjectAccess):
     """Only developers who are project members can create bugs."""

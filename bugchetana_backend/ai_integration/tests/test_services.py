@@ -7,17 +7,19 @@ from ai_integration.services import (
 
 def test_display_message_low_confidence():
     msg = build_severity_display_message('high', LOW_CONFIDENCE_THRESHOLD - 0.01)
-    assert msg == 'Predicted: High (Low confidence — please review manually)'
+    pct = int(round((LOW_CONFIDENCE_THRESHOLD - 0.01) * 100))
+    assert msg == f'Predicted: High ({pct}% confidence — please review manually)'
 
 
 def test_display_message_at_threshold():
     msg = build_severity_display_message('medium', LOW_CONFIDENCE_THRESHOLD)
-    assert msg == 'Predicted: Medium'
+    pct = int(round(LOW_CONFIDENCE_THRESHOLD * 100))
+    assert msg == f'Predicted: Medium ({pct}%)'
 
 
 def test_display_message_high_confidence():
     msg = build_severity_display_message('critical', 0.91)
-    assert msg == 'Predicted: Critical'
+    assert msg == 'Predicted: Critical (91%)'
 
 
 def test_build_prediction_response_includes_all_fields():
@@ -25,5 +27,5 @@ def test_build_prediction_response_includes_all_fields():
     assert payload == {
         'severity': 'low',
         'confidence': 0.42,
-        'display_message': 'Predicted: Low (Low confidence — please review manually)',
+        'display_message': 'Predicted: Low (42% confidence — please review manually)',
     }

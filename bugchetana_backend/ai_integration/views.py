@@ -81,7 +81,7 @@ class GuestAIReviewView(APIView):
 
 
 class BugRoastView(APIView):
-    permission_classes = (IsAuthenticated, HasBugAccess, IsDevOrQA)
+    permission_classes = (IsAuthenticated, IsDevOrQA)
 
     def post(self, request, bug_id):
         bug = get_object_or_404(Bug, id=bug_id)
