@@ -5,7 +5,7 @@ import InputField from "@/components/shared/InputField";
 import { getUsers } from "@/api/users";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import ProjectSelector from "@/components/shared/ProjectSelector";
-import { Loader2 } from "lucide-react";
+import { Loader2, Rocket, Code2, ShieldCheck, PackagePlus } from "lucide-react";
 
 export default function ReleaseManagerDashboard() {
   const [releases, setReleases] = useState([]);
@@ -69,29 +69,61 @@ export default function ReleaseManagerDashboard() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading Release Management data...</div>;
-  if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
+  if (loading) return <div className="p-8 text-center text-slate-400">Loading Release Management data...</div>;
+  if (error) return <div className="p-8 text-center text-rose-500">{error}</div>;
+
+  const severityCards = [
+    { label: "Critical", value: summary?.severity_breakdown?.critical || 0, color: "text-rose-600" },
+    { label: "High", value: summary?.severity_breakdown?.high || 0, color: "text-orange-500" },
+    { label: "Medium", value: summary?.severity_breakdown?.medium || 0, color: "text-amber-500" },
+    { label: "Low", value: summary?.severity_breakdown?.low || 0, color: "text-emerald-500" },
+    { label: "Failed", value: summary?.failed_bugs || 0, color: "text-rose-600" },
+  ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ProjectSelector />
 
+      {/* Hero / intro banner in the spirit of the Soft UI "Build by developers" panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 flex items-center gap-6 overflow-hidden relative">
+          <div className="relative z-10">
+            <p className="text-slate-300 text-sm">Release Management</p>
+            <h2 className="text-white text-xl font-bold mt-1">Ship with confidence</h2>
+            <p className="text-slate-400 text-sm mt-2 max-w-md">
+              Track your team, monitor severity, and bundle closed bugs into versioned releases.
+            </p>
+          </div>
+          <Rocket className="h-24 w-24 text-blue-400/30 absolute right-6 top-1/2 -translate-y-1/2" />
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col justify-center">
+          <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Releases</p>
+          <p className="text-3xl font-bold text-slate-800 mt-2">{releases.length}</p>
+        </div>
+      </div>
+
+      {/* Team panels */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Developers</h2>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+              <Code2 className="h-4 w-4 text-white" />
+            </div>
+            <h2 className="text-base font-semibold text-slate-800">Developers</h2>
+          </div>
           {teamLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+            <Loader2 className="h-5 w-5 animate-spin text-slate-300" />
           ) : developers.length === 0 ? (
-            <p className="text-sm text-gray-500">No developers registered.</p>
+            <p className="text-sm text-slate-400">No developers registered.</p>
           ) : (
             <div className="space-y-2">
               {developers.map((dev) => (
-                <div key={dev.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <div key={dev.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{dev.name}</p>
-                    <p className="text-xs text-gray-500">{dev.email}</p>
+                    <p className="text-sm font-semibold text-slate-800">{dev.name}</p>
+                    <p className="text-xs text-slate-400">{dev.email}</p>
                   </div>
-                  <span className="text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded-full">
+                  <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full">
                     {dev.assigned_bug_count ?? 0} bugs
                   </span>
                 </div>
@@ -100,19 +132,24 @@ export default function ReleaseManagerDashboard() {
           )}
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">QA Engineers</h2>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+              <ShieldCheck className="h-4 w-4 text-white" />
+            </div>
+            <h2 className="text-base font-semibold text-slate-800">QA Engineers</h2>
+          </div>
           {teamLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+            <Loader2 className="h-5 w-5 animate-spin text-slate-300" />
           ) : qaUsers.length === 0 ? (
-            <p className="text-sm text-gray-500">No QA users registered.</p>
+            <p className="text-sm text-slate-400">No QA users registered.</p>
           ) : (
             <div className="space-y-2">
               {qaUsers.map((qa) => (
-                <div key={qa.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <div key={qa.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{qa.name}</p>
-                    <p className="text-xs text-gray-500">{qa.email}</p>
+                    <p className="text-sm font-semibold text-slate-800">{qa.name}</p>
+                    <p className="text-xs text-slate-400">{qa.email}</p>
                   </div>
                 </div>
               ))}
@@ -121,35 +158,28 @@ export default function ReleaseManagerDashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Project Overview</h2>
+      {/* Severity overview */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <h2 className="text-base font-semibold text-slate-800 mb-4">Project Overview</h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="text-sm text-gray-500">Critical</div>
-            <div className="text-2xl font-bold text-red-600">{summary?.severity_breakdown?.critical || 0}</div>
-          </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="text-sm text-gray-500">High</div>
-            <div className="text-2xl font-bold text-orange-500">{summary?.severity_breakdown?.high || 0}</div>
-          </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="text-sm text-gray-500">Medium</div>
-            <div className="text-2xl font-bold text-yellow-500">{summary?.severity_breakdown?.medium || 0}</div>
-          </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="text-sm text-gray-500">Low</div>
-            <div className="text-2xl font-bold text-green-500">{summary?.severity_breakdown?.low || 0}</div>
-          </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="text-sm text-gray-500">Failed</div>
-            <div className="text-2xl font-bold text-red-600">{summary?.failed_bugs || 0}</div>
-          </div>
+          {severityCards.map(({ label, value, color }) => (
+            <div key={label} className="p-4 bg-slate-50 rounded-xl">
+              <div className="text-xs font-medium text-slate-400 uppercase tracking-wide">{label}</div>
+              <div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      {/* Releases */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-          <h2 className="text-lg font-semibold text-gray-800">Releases</h2>
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center">
+              <PackagePlus className="h-4 w-4 text-white" />
+            </div>
+            <h2 className="text-base font-semibold text-slate-800">Releases</h2>
+          </div>
           <form onSubmit={handleCreateRelease} className="flex gap-2">
             <div className="w-48">
               <InputField
@@ -159,7 +189,7 @@ export default function ReleaseManagerDashboard() {
                 required
               />
             </div>
-            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-medium shadow-sm shadow-blue-200 transition-colors">
               Create Release
             </button>
           </form>
@@ -167,20 +197,22 @@ export default function ReleaseManagerDashboard() {
 
         <div className="space-y-4">
           {releases.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No releases found for this project.</p>
+            <p className="text-slate-400 text-sm text-center py-8">No releases found for this project.</p>
           ) : (
             releases.map((release) => (
-              <div key={release.id} className="border border-gray-200 rounded-lg p-4">
+              <div key={release.id} className="border border-slate-100 rounded-2xl p-5 hover:shadow-sm transition-shadow">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-lg text-gray-900">{release.version}</h3>
-                  <span className="text-sm text-gray-500">{release.bugs?.length || 0} bugs attached</span>
+                  <h3 className="font-bold text-lg text-slate-800">{release.version}</h3>
+                  <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                    {release.bugs?.length || 0} bugs attached
+                  </span>
                 </div>
 
                 <div className="flex gap-2 mb-4">
                   <select
                     value={selectedBugId}
                     onChange={(e) => setSelectedBugId(e.target.value)}
-                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="border border-slate-200 rounded-xl px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
                     <option value="">Select a bug to add...</option>
                     {bugs.filter((b) => b.status === "closed").map((bug) => (
@@ -190,16 +222,16 @@ export default function ReleaseManagerDashboard() {
                   <button
                     type="button"
                     onClick={() => handleAddBugToRelease(release.id, selectedBugId)}
-                    className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
+                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm font-medium transition-colors"
                   >
                     Add to Release
                   </button>
                 </div>
 
                 {release.bugs && release.bugs.length > 0 && (
-                  <div className="bg-gray-50 rounded-md p-3 space-y-2">
+                  <div className="bg-slate-50 rounded-xl p-3 space-y-2">
                     {release.bugs.map((bug) => (
-                      <div key={bug.id} className="text-sm text-gray-700 bg-white p-2 rounded border border-gray-200">
+                      <div key={bug.id} className="text-sm text-slate-600 bg-white p-2.5 rounded-lg border border-slate-100">
                         #{bug.id} - {bug.title}
                       </div>
                     ))}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Bug, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import NotificationBell from '@/components/shared/NotificationBell';
 import bugchetanaIcon from '@/assets/bugchetana-icon.svg';
@@ -112,7 +112,7 @@ export default function Navbar() {
                 
                 {canSubmitBug && (
                   <Link to="/bugs/new" className="flex items-center gap-1.5 text-slate-600 hover:text-blue-600 font-medium transition-colors mr-2">
-                    <Bug className="h-4 w-4" />
+
                     Submit Bug
                   </Link>
                 )}
@@ -175,7 +175,6 @@ export default function Navbar() {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
                 >
-                  <Bug className="h-4 w-4" />
                   Submit Bug
                 </Link>
                 <Link
@@ -248,7 +247,7 @@ export default function Navbar() {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
                   >
-                    <Bug className="h-4 w-4" />
+                    
                     Submit Bug
                   </Link>
                 )}

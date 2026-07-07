@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Users, X } from "lucide-react";
+import { Loader2, Users, X, ClipboardCheck, CheckCircle2 } from "lucide-react";
 import { useProject } from "@/context/ProjectContext";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import { getUsers } from "@/api/users";
@@ -102,8 +102,8 @@ export default function QaDashboard() {
   const completedBugs = bugs.filter((b) => b.status === BUG_STATUS.CLOSED);
   const displayBugs = activeTab === "pending" ? pendingBugs : completedBugs;
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading QA dashboard...</div>;
-  if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
+  if (loading) return <div className="p-8 text-center text-slate-400">Loading QA dashboard...</div>;
+  if (error) return <div className="p-8 text-center text-rose-500">{error}</div>;
 
   return (
     <div className="space-y-6">
@@ -111,21 +111,24 @@ export default function QaDashboard() {
         <ProjectSelector />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      {/* Assign developers panel */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Users className="h-5 w-5 text-blue-600" />
-          <h2 className="text-lg font-semibold text-gray-800">My Projects — Assign Developers</h2>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+            <Users className="h-4 w-4 text-white" />
+          </div>
+          <h2 className="text-base font-semibold text-slate-800">My Projects — Assign Developers</h2>
         </div>
         {currentProject ? (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Project: <span className="font-medium text-gray-900">{currentProject.name}</span>
+            <p className="text-sm text-slate-500">
+              Project: <span className="font-semibold text-slate-800">{currentProject.name}</span>
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <select
                 value={selectedDeveloperId}
                 onChange={(e) => setSelectedDeveloperId(e.target.value)}
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
                 <option value="">Select a developer to add...</option>
                 {developers
@@ -139,7 +142,7 @@ export default function QaDashboard() {
               <button
                 type="button"
                 onClick={handleAddDeveloperToProject}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-medium shadow-sm shadow-blue-200 transition-colors"
               >
                 Add to Project
               </button>
@@ -149,7 +152,7 @@ export default function QaDashboard() {
                 {projectDevelopers.map((m) => (
                   <span
                     key={m.id}
-                    className="text-xs bg-slate-100 text-slate-700 px-3 py-1 rounded-full border border-slate-200"
+                    className="text-xs font-medium bg-slate-50 text-slate-600 px-3 py-1.5 rounded-full border border-slate-200"
                   >
                     {m.user_name}
                   </span>
@@ -158,52 +161,72 @@ export default function QaDashboard() {
             )}
           </div>
         ) : (
-          <p className="text-sm text-gray-500">No project assigned yet.</p>
+          <p className="text-sm text-slate-400">No project assigned yet.</p>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 hover:shadow-md transition-shadow">
-          <h3 className="text-sm font-medium text-gray-500">Pending QA</h3>
-          <p className="text-3xl font-bold text-amber-600 mt-2">{pendingBugs.length}</p>
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow p-5 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Pending QA</p>
+            <p className="text-2xl font-bold text-slate-800 mt-2">{pendingBugs.length}</p>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center shadow-md shrink-0">
+            <ClipboardCheck className="h-5 w-5 text-white" />
+          </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 hover:shadow-md transition-shadow">
-          <h3 className="text-sm font-medium text-gray-500">Passed (Closed)</h3>
-          <p className="text-3xl font-bold text-green-600 mt-2">{completedBugs.length}</p>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow p-5 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Passed (Closed)</p>
+            <p className="text-2xl font-bold text-slate-800 mt-2">{completedBugs.length}</p>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-md shrink-0">
+            <CheckCircle2 className="h-5 w-5 text-white" />
+          </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="border-b border-gray-200 flex">
+      {/* Bug review list */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="border-b border-slate-100 flex px-2 pt-2">
           <button
             type="button"
-            className={`flex-1 py-4 text-center font-medium ${activeTab === "pending" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:bg-gray-50"}`}
+            className={`flex-1 py-3.5 text-center text-sm font-semibold rounded-t-xl transition-colors ${
+              activeTab === "pending"
+                ? "text-blue-600 bg-blue-50"
+                : "text-slate-400 hover:bg-slate-50"
+            }`}
             onClick={() => setActiveTab("pending")}
           >
             Awaiting QA
           </button>
           <button
             type="button"
-            className={`flex-1 py-4 text-center font-medium ${activeTab === "completed" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:bg-gray-50"}`}
+            className={`flex-1 py-3.5 text-center text-sm font-semibold rounded-t-xl transition-colors ${
+              activeTab === "completed"
+                ? "text-blue-600 bg-blue-50"
+                : "text-slate-400 hover:bg-slate-50"
+            }`}
             onClick={() => setActiveTab("completed")}
           >
             Completed (Passed)
           </button>
         </div>
 
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-slate-100">
           {displayBugs.length === 0 ? (
-            <div className="p-6 text-center text-gray-500">No bugs in this category.</div>
+            <div className="p-10 text-center text-slate-400 text-sm">No bugs in this category.</div>
           ) : (
             displayBugs.map((bug) => (
-              <div key={bug.id} className="p-6 space-y-3 hover:bg-gray-50 transition-colors">
+              <div key={bug.id} className="p-5 space-y-3 hover:bg-slate-50 transition-colors">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="cursor-pointer flex-1" onClick={() => navigate(`/bugs/${bug.id}`)}>
-                    <h3 className="text-md font-medium text-gray-900">{bug.title}</h3>
-                    <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
+                  <div className="cursor-pointer flex-1 min-w-0" onClick={() => navigate(`/bugs/${bug.id}`)}>
+                    <h3 className="text-sm font-semibold text-slate-800 truncate">{bug.title}</h3>
+                    <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-400">
                       <span>ID: #{bug.id}</span>
                       <span
-                        className={`text-xs font-semibold px-2 py-0.5 rounded-full border capitalize ${
+                        className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border capitalize ${
                           STATUS_STYLES[bug.status] || STATUS_STYLES.open
                         }`}
                       >
@@ -217,14 +240,14 @@ export default function QaDashboard() {
                       <button
                         type="button"
                         onClick={() => handleQaPass(bug.id)}
-                        className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 text-sm font-medium"
+                        className="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl hover:bg-emerald-100 text-xs font-semibold transition-colors"
                       >
                         Pass
                       </button>
                       <button
                         type="button"
                         onClick={() => openFailModal(bug)}
-                        className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-medium"
+                        className="px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl hover:bg-rose-100 text-xs font-semibold transition-colors"
                       >
                         Fail
                       </button>
@@ -239,7 +262,7 @@ export default function QaDashboard() {
                       onChange={(e) =>
                         setAssignSelections({ ...assignSelections, [bug.id]: e.target.value })
                       }
-                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                      className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white"
                     >
                       <option value="">Assign developer...</option>
                       {developers.map((d) => (
@@ -251,7 +274,7 @@ export default function QaDashboard() {
                     <button
                       type="button"
                       onClick={() => handleAssignBug(bug.id)}
-                      className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-100 text-sm font-medium"
+                      className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm font-medium transition-colors"
                     >
                       Assign
                     </button>
@@ -263,21 +286,22 @@ export default function QaDashboard() {
         </div>
       </div>
 
+      {/* Fail review modal */}
       {failModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-lg w-full max-w-md p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-xl w-full max-w-md p-6 space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Mark as Failed</h3>
-                <p className="text-sm text-gray-500 mt-1">{failModal.title}</p>
+                <h3 className="text-lg font-semibold text-slate-800">Mark as Failed</h3>
+                <p className="text-sm text-slate-400 mt-1">{failModal.title}</p>
               </div>
-              <button type="button" onClick={() => setFailModal(null)} className="text-gray-400 hover:text-gray-600">
+              <button type="button" onClick={() => setFailModal(null)} className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                QA Comment <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                QA Comment <span className="text-rose-500">*</span>
               </label>
               <textarea
                 value={failComment}
@@ -287,22 +311,22 @@ export default function QaDashboard() {
                 }}
                 rows={4}
                 placeholder="Explain why this bug failed QA review..."
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              {failError && <p className="text-xs text-red-600 mt-1">{failError}</p>}
+              {failError && <p className="text-xs text-rose-600 mt-1">{failError}</p>}
             </div>
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
                 onClick={() => setFailModal(null)}
-                className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleQaFail}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
+                className="px-4 py-2 bg-rose-600 text-white rounded-xl text-sm font-medium hover:bg-rose-700 shadow-sm shadow-rose-200"
               >
                 Submit Failed Review
               </button>
