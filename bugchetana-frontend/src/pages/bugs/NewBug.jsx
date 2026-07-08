@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '@/context/ProjectContext';
 import { createBug } from '@/api/bugs';
-import { getRoast } from '@/api/ai';
-import { Bug, Flame, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
+import { getRoast, getSuggestedFix } from '@/api/ai';
+import { Bug, Flame, Loader2, CheckCircle2, Sparkles, Lightbulb } from 'lucide-react';
 
 const SEVERITY_STYLES = {
   low: 'bg-green-50 text-green-700 border-green-200',
@@ -44,6 +44,11 @@ export default function NewBug() {
   const [roast, setRoast] = useState(null);
   const [roastLoading, setRoastLoading] = useState(false);
   const [roastError, setRoastError] = useState(null);
+
+  // AI Solution state — only usable after the bug exists
+  const [solution, setSolution] = useState(null);
+  const [solutionLoading, setSolutionLoading] = useState(false);
+  const [solutionError, setSolutionError] = useState(null);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -93,6 +98,21 @@ export default function NewBug() {
     }
   };
 
+  const handleSolution = async () => {
+    if (!createdBug) return;
+    setSolutionLoading(true);
+    setSolutionError(null);
+    try {
+      const data = await getSuggestedFix(createdBug.id);
+      setSolution(data.solution_suggestion);
+    } catch (err) {
+      console.error(err);
+      setSolutionError(extractApiError(err, "Fix suggestion is temporarily unavailable. Try again shortly."));
+    } finally {
+      setSolutionLoading(false);
+    }
+  };
+
   // ─── Success panel — shown after the bug is created ───────────────
   if (createdBug) {
     return (
@@ -131,39 +151,76 @@ export default function NewBug() {
               )}
             </div>
 
-            <div className="pt-2 border-t border-gray-100">
-              {!roast && (
-                <button
-                  type="button"
-                  onClick={handleRoast}
-                  disabled={roastLoading}
-                  className="flex items-center space-x-2 px-4 py-2 border border-gray-200 text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
-                >
-                  {roastLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Roasting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Flame className="h-4 w-4" />
-                      <span>Roast Mode</span>
-                    </>
-                  )}
-                </button>
-              )}
+            <div className="pt-2 border-t border-gray-100 space-y-3">
+              <div className="flex gap-2">
+                {!roast && (
+                  <button
+                    type="button"
+                    onClick={handleRoast}
+                    disabled={roastLoading}
+                    className="flex items-center space-x-2 px-4 py-2 border border-gray-200 text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
+                  >
+                    {roastLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Roasting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Flame className="h-4 w-4" />
+                        <span>Roast Mode</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {!solution && (
+                  <button
+                    type="button"
+                    onClick={handleSolution}
+                    disabled={solutionLoading}
+                    className="flex items-center space-x-2 px-4 py-2 border border-gray-200 text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
+                  >
+                    {solutionLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Thinking...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lightbulb className="h-4 w-4" />
+                        <span>AI Solution</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
 
               {roastError && (
-                <p className="text-sm text-red-600 mt-2">{roastError}</p>
+                <p className="text-sm text-red-600">{roastError}</p>
               )}
 
               {roast && (
-                <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm text-gray-800">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm text-gray-800">
                   <div className="flex items-center gap-2 mb-1 text-orange-700 font-medium">
                     <Flame className="h-4 w-4" />
                     <span>Roast</span>
                   </div>
                   {roast}
+                </div>
+              )}
+
+              {solutionError && (
+                <p className="text-sm text-red-600">{solutionError}</p>
+              )}
+
+              {solution && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-gray-800">
+                  <div className="flex items-center gap-2 mb-1 text-blue-700 font-medium">
+                    <Lightbulb className="h-4 w-4" />
+                    <span>Suggested Fix</span>
+                  </div>
+                  {solution}
                 </div>
               )}
             </div>
@@ -181,6 +238,7 @@ export default function NewBug() {
                 onClick={() => {
                   setCreatedBug(null);
                   setRoast(null);
+                  setSolution(null);
                   setFormData({ title: '', description: '', severity: 'medium' });
                 }}
                 className="px-6 py-2 border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
@@ -199,9 +257,6 @@ export default function NewBug() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center space-x-3">
-          <div className="bg-blue-100 p-2 rounded-lg">
-            <Bug className="h-5 w-5 text-blue-600" />
-          </div>
           <h2 className="text-xl font-semibold text-gray-900">Submit New Bug</h2>
         </div>
 
@@ -252,21 +307,6 @@ export default function NewBug() {
             </div>
 
             <div>
-              {/*<label htmlFor="severity" className="block text-sm font-medium text-gray-700 mb-1">*/}
-              {/*  Severity <span className="text-red-500">*</span>*/}
-              {/*</label>*/}
-              {/*<select*/}
-              {/*  id="severity"*/}
-              {/*  name="severity"*/}
-              {/*  value={formData.severity}*/}
-              {/*  onChange={handleChange}*/}
-              {/*  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-shadow"*/}
-              {/*>*/}
-              {/*  <option value="low">Low</option>*/}
-              {/*  <option value="medium">Medium</option>*/}
-              {/*  <option value="high">High</option>*/}
-              {/*  <option value="critical">Critical</option>*/}
-              {/*</select>*/}
               <p className="text-xs text-gray-400 mt-1">
                 AI will also suggest a severity automatically once submitted.
               </p>
