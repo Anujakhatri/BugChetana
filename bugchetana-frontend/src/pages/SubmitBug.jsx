@@ -23,7 +23,7 @@ function extractApiError(err, fallback) {
   return Array.isArray(val) ? val[0] : String(val);
 }
 
-export default function SubmitBug() {
+export default function SubmitBug({ severityOnly = false }) {
   const [formData, setFormData] = useState({ title: '', description: '' });
   const [prediction, setPrediction] = useState(null);
   const [predictLoading, setPredictLoading] = useState(false);
@@ -182,12 +182,12 @@ export default function SubmitBug() {
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <div className={`flex flex-col sm:flex-row gap-3 pt-2 ${severityOnly ? "" : ""}`}>
             <button
               type="button"
               onClick={handlePredict}
               disabled={predictLoading}
-              className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
+              className={`flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-6 py-2.5 rounded-lg font-medium transition-colors ${severityOnly ? "w-full" : "flex-1"}`}
             >
               {predictLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -196,22 +196,24 @@ export default function SubmitBug() {
               )}
               Predict Severity
             </button>
-            <button
-              type="button"
-              onClick={handleAiReview}
-              disabled={!canReview || reviewLoading}
-              className="flex-1 flex items-center justify-center gap-2 border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2.5 rounded-lg font-medium transition-colors"
-            >
-              {reviewLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Flame className="h-4 w-4 text-orange-500" />
-              )}
-              AI Review
-            </button>
+            {!severityOnly && (
+              <button
+                type="button"
+                onClick={handleAiReview}
+                disabled={!canReview || reviewLoading}
+                className="flex-1 flex items-center justify-center gap-2 border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2.5 rounded-lg font-medium transition-colors"
+              >
+                {reviewLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Flame className="h-4 w-4 text-orange-500" />
+                )}
+                AI Review
+              </button>
+            )}
           </div>
 
-          {prediction && !review && !reviewLoading && (
+          {prediction && !review && !reviewLoading && !severityOnly && (
             <p className="text-xs text-slate-500 text-center">
               AI Review is available after prediction — no login required.
             </p>

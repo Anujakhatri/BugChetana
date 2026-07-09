@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { FeatureCard } from '@/components/shared/CoreFeatures.jsx';
 import bugchetanaIcon from '@/assets/bugchetana-icon.svg';
+import Footer from '@/components/shared/Footer';
 
 // Custom SVG Icons for brands (since lucide-react removed them)
 const GithubIcon = ({ className }) => (
@@ -171,27 +172,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 py-12 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <img src={bugchetanaIcon} alt="BugChetana" className="h-6 w-6 object-contain" />
-            <span className="text-white font-bold text-lg">BugChetana</span>
-            <span className="text-slate-500 hidden sm:inline">|</span>
-            <span className="text-slate-400 text-sm">Built by Anu</span>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">
-              <span className="sr-only">GitHub</span>
-              <GithubIcon className="h-5 w-5" />
-            </a>
-            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">
-              <span className="sr-only">LinkedIn</span>
-              <LinkedinIcon className="h-5 w-5" />
-            </a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

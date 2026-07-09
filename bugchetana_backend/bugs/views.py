@@ -9,11 +9,13 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 
 from notifications.services import create_notification
+from accounts.permissions import get_role, IsReleaseManager
 
-from .models import Bug, BugComment, BugHistory, Release, ReleaseBug
+from .models import Bug, BugComment, BugHistory, Release, ReleaseBug, BugList, BugListItem, QAResult
 from .serializers import (
     BugSerializer, BugCreateSerializer, BugCommentSerializer, BugHistorySerializer,
     ReleaseSerializer, QAResultSerializer, BugAssignSerializer, BugResubmitSerializer,
+    BugListSerializer, QAResultHistorySerializer, DeveloperBugHistorySerializer,
 )
 from .access import visible_bugs_for
 from .permissions import (
@@ -79,7 +81,7 @@ class BugDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = (IsAuthenticated, IsBugProjectMember, IsBugOwnerOrReleaseManager)
     queryset = Bug.objects.all()
 
-    DEVELOPER_ALLOWED_FIELDS = {'status', 'description', 'title'}
+    DEVELOPER_ALLOWED_FIELDS = {'status', 'description', 'title', 'notes'}
     QA_ALLOWED_FIELDS = {'assigned_to'}
     DEVELOPER_BLOCKED_STATUSES = {'closed'}
 
@@ -113,9 +115,43 @@ class BugDetailView(generics.RetrieveUpdateDestroyAPIView):
                         "Developers cannot set status to 'closed' directly. "
                         "This is set automatically when QA passes the bug."
                     )
+                # If developer is marking the bug as resolved, require a comment
+                if new_status == 'resolved':
+                    notes = (self.request.data.get('notes') or '').strip()
+                    if not notes:
+                        raise ValidationError({'notes': 'A comment is required when resolving a bug.'})
 
+        old_status = bug.status
         serializer.instance._changed_by = self.request.user
         serializer.save()
+
+        # If developer marked bug as resolved, record comment, history and notify QA engineers
+        new_status = serializer.instance.status
+        if old_status != 'resolved' and new_status == 'resolved' and role == 'Developer':
+            # create a BugComment with the provided notes for audit
+            notes = (self.request.data.get('notes') or '').strip()
+            if notes:
+                BugComment.objects.create(bug=serializer.instance, user=self.request.user, comment_text=notes)
+
+            # record history
+            BugHistory.objects.create(
+                bug=serializer.instance,
+                changed_by=self.request.user,
+                old_status=old_status,
+                new_status=new_status,
+            )
+
+            qa_members = bug.project.members.filter(user__role__name='QA')
+            for member in qa_members:
+                create_notification(
+                    recipient=member.user,
+                    message=(
+                        f'Developer {self.request.user.name} marked Bug "{bug.title}" (#{bug.id}) as Resolved. '
+                        f'Comment: {notes}'
+                    ),
+                    related_bug=bug,
+                    related_project=bug.project,
+                )
 
 
 # ─── Comment Views ───────────────────────────────────────────
@@ -154,6 +190,7 @@ class QAResultCreateView(generics.CreateAPIView):
 
         if bug.status not in ('resolved', 'resubmitted'):
             raise ValidationError("Only resolved or resubmitted bugs can be QA tested.")
+        prev_status = bug.status
 
         qa_result = serializer.save(
             qa=self.request.user,
@@ -168,6 +205,14 @@ class QAResultCreateView(generics.CreateAPIView):
             bug.status = 'closed'
             bug.verified_by = self.request.user
             bug.qa_comment = None
+            rm = bug.project.release_manager
+            if rm:
+                create_notification(
+                    recipient=rm,
+                    message=f'"{bug.title}" was approved by QA — ready to release',
+                    related_bug=bug,
+                    related_project=bug.project,
+                )
         elif qa_result.result == 'fail':
             bug.status = 'failed'
             bug.qa_comment = qa_result.notes
@@ -181,8 +226,33 @@ class QAResultCreateView(generics.CreateAPIView):
                     ),
                     related_bug=bug,
                 )
+        elif qa_result.result == 'reassign':
+            # QA requested reassignment — mark resubmitted and notify all developers on the project
+            bug.status = 'resubmitted'
+            bug.qa_comment = qa_result.notes
+            bug.verified_by = None
+            from projects.models import Project
+            dev_members = bug.project.members.filter(user__role__name='Developer')
+            for member in dev_members:
+                create_notification(
+                    recipient=member.user,
+                    message=(
+                        f'QA {self.request.user.name} reassigned Bug "{bug.title}" (#{bug.id}). '
+                        f'Comment: {qa_result.notes}'
+                    ),
+                    related_bug=bug,
+                    related_project=bug.project,
+                )
 
+        # record history if status changed
         bug._changed_by = self.request.user
+        if prev_status != bug.status:
+            BugHistory.objects.create(
+                bug=bug,
+                changed_by=self.request.user,
+                old_status=prev_status,
+                new_status=bug.status,
+            )
         bug.save()
 
 
@@ -195,6 +265,16 @@ class BugAssignView(APIView):
         serializer.is_valid(raise_exception=True)
 
         developer = User.objects.get(pk=serializer.validated_data['assigned_to'])
+        notes = (request.data.get('notes') or '').strip()
+        record_reassign = request.data.get('record_reassign', False)
+
+        if record_reassign and not notes:
+            return Response(
+                {'notes': ['A comment is required when reassigning a bug.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        previous_assignee = bug.assigned_to_id
         bug.assigned_to = developer
         bug._changed_by = request.user
         bug.save(update_fields=['assigned_to'])
@@ -204,6 +284,14 @@ class BugAssignView(APIView):
             message=f'Bug "#{bug.id}: {bug.title}" has been assigned to you.',
             related_bug=bug,
         )
+
+        if record_reassign:
+            QAResult.objects.create(
+                bug=bug,
+                qa=request.user,
+                result='reassign',
+                notes=notes,
+            )
 
         return Response(BugSerializer(bug).data)
 
@@ -293,4 +381,144 @@ class DashboardSummaryView(APIView):
             "resolved_bugs": bugs.filter(status='resolved').count(),
             "failed_bugs": bugs.filter(status='failed').count(),
             "severity_breakdown": {item['severity']: item['count'] for item in severity_breakdown},
+        })
+
+
+class DeveloperSubmittedBugsView(generics.ListAPIView):
+    """Bugs created by the authenticated developer (Bug History tab)."""
+    serializer_class = DeveloperBugHistorySerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        user = self.request.user
+        if get_role(user) != 'Developer':
+            return Bug.objects.none()
+
+        qs = Bug.objects.filter(created_by=user).select_related('project')
+        project_id = self.request.query_params.get('project_id')
+        if project_id:
+            qs = qs.filter(project_id=project_id)
+        return qs.order_by('-created_at')
+
+
+class QAResultHistoryView(generics.ListAPIView):
+    """QA review decisions for the authenticated QA user."""
+    serializer_class = QAResultHistorySerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        user = self.request.user
+        if get_role(user) != 'QA':
+            return QAResult.objects.none()
+
+        qs = QAResult.objects.filter(qa=user).select_related(
+            'bug', 'bug__assigned_to', 'bug__project',
+        )
+        project_id = self.request.query_params.get('project_id')
+        if project_id:
+            qs = qs.filter(bug__project_id=project_id)
+        return qs.order_by('-tested_at')
+
+
+class BugListCreateViewForProject(generics.ListCreateAPIView):
+    serializer_class = BugListSerializer
+    permission_classes = (IsAuthenticated, HasProjectAccess)
+
+    def get_queryset(self):
+        return BugList.objects.filter(
+            project_id=self.kwargs['project_id'],
+        ).prefetch_related('items__bug')
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            from .permissions import CanCreateBugList
+            return [IsAuthenticated(), CanCreateBugList()]
+        return [IsAuthenticated(), HasProjectAccess()]
+
+    def perform_create(self, serializer):
+        project_id = self.kwargs['project_id']
+        pending_bugs = Bug.objects.filter(
+            project_id=project_id,
+            status__in=('resolved', 'resubmitted'),
+        )
+        bug_list = serializer.save(
+            project_id=project_id,
+            created_by=self.request.user,
+        )
+        for bug in pending_bugs:
+            BugListItem.objects.get_or_create(bug_list=bug_list, bug=bug)
+
+        # Notify project developers about the new bug list
+        from projects.models import Project
+        project = Project.objects.get(id=project_id)
+        dev_members = project.members.filter(user__role__name='Developer')
+        for member in dev_members:
+            create_notification(
+                recipient=member.user,
+                message=f'A new bug list "{bug_list.name}" was created for project "{project.name}".',
+                related_project=project,
+            )
+
+
+class ReleaseManagerHistoryView(APIView):
+    """
+    Aggregate history for Release Manager dashboards.
+    Bugs Reassigned = QA fail results across managed projects (see product note in frontend).
+    """
+    permission_classes = (IsAuthenticated, IsReleaseManager)
+
+    def get(self, request):
+        from projects.models import Project
+
+        projects = Project.objects.filter(release_manager=request.user)
+        project_ids = list(projects.values_list('id', flat=True))
+
+        total_projects_created = projects.count()
+        total_projects_released = Release.objects.filter(
+            project_id__in=project_ids,
+        ).values('project_id').distinct().count()
+
+        # QA fail events treated as reassignment/rejection back to developer
+        fail_results = QAResult.objects.filter(
+            bug__project_id__in=project_ids,
+            result='fail',
+        ).select_related('bug', 'bug__project')
+
+        total_bugs_reassigned = fail_results.count()
+
+        activity = []
+
+        for project in projects.order_by('-created_at'):
+            activity.append({
+                'project': project.name,
+                'action': 'Created',
+                'bug_title': None,
+                'date': project.created_at,
+            })
+
+        for release in Release.objects.filter(
+            project_id__in=project_ids,
+        ).select_related('project').order_by('-released_at'):
+            activity.append({
+                'project': release.project.name,
+                'action': 'Released',
+                'bug_title': release.version,
+                'date': release.released_at,
+            })
+
+        for qa_result in fail_results.order_by('-tested_at'):
+            activity.append({
+                'project': qa_result.bug.project.name,
+                'action': 'Reassigned',
+                'bug_title': qa_result.bug.title,
+                'date': qa_result.tested_at,
+            })
+
+        activity.sort(key=lambda item: item['date'], reverse=True)
+
+        return Response({
+            'total_projects_created': total_projects_created,
+            'total_projects_released': total_projects_released,
+            'total_bugs_reassigned': total_bugs_reassigned,
+            'activity': activity,
         })

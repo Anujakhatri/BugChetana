@@ -185,11 +185,52 @@ class ReleaseBug(models.Model):
     def __str__(self):
         return f"Release#{self.release.id} - Bug #{self.bug.id}"
 
+class BugList(models.Model):
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='bug_lists',
+    )
+    name = models.CharField(max_length=255)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_bug_lists',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'bug_lists'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.project.name})"
+
+
+class BugListItem(models.Model):
+    bug_list = models.ForeignKey(
+        BugList,
+        on_delete=models.CASCADE,
+        related_name='items',
+    )
+    bug = models.ForeignKey(
+        Bug,
+        on_delete=models.CASCADE,
+        related_name='list_items',
+    )
+
+    class Meta:
+        db_table = 'bug_list_items'
+        unique_together = ['bug_list', 'bug']
+
+
 class QAResult(models.Model):
     RESULT_CHOICES = [
         ('pass', 'Pass'),
         ('fail', 'Fail'),
         ('blocked', 'Blocked'),
+        ('reassign', 'Reassign'),
     ]
 
     bug = models.ForeignKey(

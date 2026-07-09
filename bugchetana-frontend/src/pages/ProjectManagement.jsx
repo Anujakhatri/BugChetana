@@ -8,7 +8,7 @@ import { getUsers } from '@/api/users';
 import PageContainer from '@/components/layout/PageContainer';
 import { Plus, Trash2, Users, Loader2, X, Pencil } from 'lucide-react';
 
-export default function ProjectManagement() {
+export default function ProjectManagement({ embedded = false }) {
   const { user } = useAuth();
   const isRM = user?.roleName === 'Release Manager';
 
@@ -19,7 +19,7 @@ export default function ProjectManagement() {
   // create form
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [selectedQaIds, setSelectedQaIds] = useState([]);
+  const [selectedQaId, setSelectedQaId] = useState('');
   const [qaOptions, setQaOptions] = useState([]);
   const [creating, setCreating] = useState(false);
 
@@ -66,12 +66,12 @@ export default function ProjectManagement() {
       const project = await createProject({
         name: newName.trim(),
         description: newDescription.trim() || undefined,
-        qa_ids: selectedQaIds.map(Number),
+        qa_ids: selectedQaId ? [Number(selectedQaId)] : [],
       });
       setProjects([...projects, project]);
       setNewName('');
       setNewDescription('');
-      setSelectedQaIds([]);
+      setSelectedQaId('');
     } catch (err) {
       console.error(err);
       setError('Failed to create project.');
@@ -166,15 +166,19 @@ export default function ProjectManagement() {
   };
 
   if (loading) {
-    return (
+    return embedded ? (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+      </div>
+    ) : (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
       </div>
     );
   }
 
-  return (
-    <PageContainer maxWidth="3xl">
+  const content = (
+    <>
         <h1 className="text-xl font-semibold text-gray-900">Projects</h1>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -199,13 +203,11 @@ export default function ProjectManagement() {
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Assign QA</label>
                 <select
-                  multiple
-                  value={selectedQaIds}
-                  onChange={(e) =>
-                    setSelectedQaIds(Array.from(e.target.selectedOptions, (o) => o.value))
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[88px]"
+                  value={selectedQaId}
+                  onChange={(e) => setSelectedQaId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 >
+                  <option value="">Select a QA</option>
                   {qaOptions.map((qa) => (
                     <option key={qa.id} value={qa.id}>
                       {qa.name} ({qa.email})
@@ -384,6 +386,12 @@ export default function ProjectManagement() {
             );
           })}
         </div>
-    </PageContainer>
+    </>
   );
+
+  if (embedded) {
+    return <div className="space-y-6">{content}</div>;
+  }
+
+  return <PageContainer maxWidth="3xl">{content}</PageContainer>;
 }

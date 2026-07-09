@@ -1,4 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import re
+
+with open("/Users/anujakhatri/Desktop/capstone/BugChetana/bugchetana-frontend/src/components/layout/Navbar.jsx", "r") as f:
+    content = f.read()
+
+new_content = """import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Bug, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -190,3 +195,8 @@ export default function Navbar() {
     </nav>
   );
 }
+"""
+
+with open("/Users/anujakhatri/Desktop/capstone/BugChetana/bugchetana-frontend/src/components/layout/Navbar.jsx", "w") as f:
+    f.write(new_content)
+

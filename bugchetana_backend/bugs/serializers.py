@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Bug, BugComment, BugHistory, Release, ReleaseBug, QAResult
+from .models import Bug, BugComment, BugHistory, Release, ReleaseBug, QAResult, BugList
 from accounts.models import User
 
 
@@ -91,9 +91,10 @@ class QAResultSerializer(serializers.ModelSerializer):
     def validate(self, data):
         result = data.get('result')
         notes = (data.get('notes') or '').strip()
-        if result == 'fail' and not notes:
+        # Require notes for failure and explicit reassignment
+        if result in ('fail', 'reassign') and not notes:
             raise serializers.ValidationError(
-                {'notes': 'A comment is required when marking a bug as failed.'}
+                {'notes': 'A comment is required when marking a bug as failed or reassigned.'}
             )
         if notes:
             data['notes'] = notes
@@ -121,3 +122,60 @@ class BugResubmitSerializer(serializers.Serializer):
         if not data.get('title') and not data.get('description'):
             raise serializers.ValidationError('Provide an updated title or description to resubmit.')
         return data
+
+
+class DeveloperBugHistorySerializer(serializers.ModelSerializer):
+    submitted_at = serializers.DateTimeField(source='created_at', read_only=True)
+    latest_qa_result = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Bug
+        fields = (
+            'id', 'title', 'description', 'status', 'submitted_at', 'latest_qa_result',
+        )
+
+    def get_latest_qa_result(self, obj):
+        qa = obj.qa_results.order_by('-tested_at').first()
+        if not qa:
+            return None
+        return {'result': qa.result, 'tested_at': qa.tested_at}
+
+
+class QAResultHistorySerializer(serializers.ModelSerializer):
+    title = serializers.CharField(source='bug.title', read_only=True)
+    developer = serializers.CharField(source='bug.assigned_to.name', read_only=True)
+    date = serializers.DateTimeField(source='tested_at', read_only=True)
+    result = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QAResult
+        fields = ('id', 'title', 'developer', 'result', 'date', 'notes')
+
+    def get_result(self, obj):
+        mapping = {
+            'pass': 'approved',
+            'fail': 'failed',
+            'reassign': 'reassigned',
+            'blocked': 'failed',
+        }
+        return mapping.get(obj.result, obj.result)
+
+
+class BugListSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.name', read_only=True)
+    bug_count = serializers.SerializerMethodField()
+    bug_ids = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BugList
+        fields = (
+            'id', 'name', 'project', 'created_by', 'created_by_name',
+            'bug_count', 'bug_ids', 'created_at',
+        )
+        read_only_fields = ('project', 'created_by', 'created_at')
+
+    def get_bug_count(self, obj):
+        return obj.items.count()
+
+    def get_bug_ids(self, obj):
+        return list(obj.items.values_list('bug_id', flat=True))

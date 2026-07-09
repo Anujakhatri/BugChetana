@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, Lock } from 'lucide-react';
 import InputField from '@/components/shared/InputField.jsx';
 import OAuthButtons from '@/components/shared/OAuthButtons.jsx';
@@ -22,6 +22,7 @@ export default function Login() {
   // backend connection ko lagi chaini
   const { setUser } = useAuth();  //global user set garna
   const navigate = useNavigate();  //login pachi redirect
+  const [searchParams] = useSearchParams();
   const [error, setError] = useState(""); //backend ko error dekhauna
   //yo input components haru backend ma pathaincha
   const [showPassword, setShowPassword] = useState(false);
@@ -77,13 +78,20 @@ export default function Login() {
     try {
       // Step 1: Backend ma POST request
       const { data } = await loginUser({ email, password });
-      //Step 2: Backend le diyeko tokens save garcha
-      localStorage.setItem("access", data.tokens.access);
-      localStorage.setItem("refresh", data.tokens.refresh);
+      //Step 2: Backend le diyeko tokens save garcha (per-tab session)
+      sessionStorage.setItem("access", data.tokens.access);
+      sessionStorage.setItem("refresh", data.tokens.refresh);
       //Step 3: Global state ma user rakhcha
       setUser(data.user);
-      //step 4: Redirect
-      navigate("/dashboard");
+      //step 4: Redirect — honour ?next= (set by ProtectedRoute when an
+      // unauthenticated user tried to visit a protected page). The
+      // startsWith("/") + !startsWith("//") check blocks open-redirect
+      // attempts like ?next=https://evil.com.
+      const next = searchParams.get("next");
+      const safeNext = next && next.startsWith("/") && !next.startsWith("//")
+        ? next
+        : "/dashboard";
+      navigate(safeNext);
     } catch (err) {
       const data = err.response?.data;
 

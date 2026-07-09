@@ -30,8 +30,30 @@ export const getBugHistory = (bugId) =>
 export const submitQaResult = (bugId, data) =>
   api.post(`/bugs/${bugId}/qa-result/`, data).then(res => res.data);
 
-export const assignBug = (bugId, developerId) =>
-  api.patch(`/bugs/${bugId}/assign/`, { assigned_to: developerId }).then(res => res.data);
+export const assignBug = (bugId, developerId, options = {}) =>
+  api.patch(`/bugs/${bugId}/assign/`, {
+    assigned_to: developerId,
+    ...options,
+  }).then(res => res.data);
 
 export const resubmitBug = (bugId, data) =>
   api.post(`/bugs/${bugId}/resubmit/`, data).then(res => res.data);
+
+export const getMySubmittedBugs = (projectId) => {
+  const params = projectId ? { project_id: projectId } : {};
+  return api.get('/bugs/mine/', { params }).then(res => res.data);
+};
+
+export const getMyQaHistory = (projectId) => {
+  const params = projectId ? { project_id: projectId } : {};
+  return api.get('/qa-results/mine/', { params }).then(res => res.data);
+};
+
+export const getBugLists = (projectId) =>
+  api.get(`/projects/${projectId}/bug-lists/`).then(res => res.data);
+
+export const createBugList = (projectId, name) =>
+  api.post(`/projects/${projectId}/bug-lists/`, { name }).then(res => res.data);
+
+export const getReleaseManagerHistory = () =>
+  api.get('/release-manager/history/').then(res => res.data);
