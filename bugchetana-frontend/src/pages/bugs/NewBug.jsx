@@ -203,7 +203,6 @@ export default function NewBug() {
       <div className="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center space-x-3">
           <div className="bg-blue-100 p-2 rounded-lg">
-            <Bug className="h-5 w-5 text-blue-600" />
           </div>
           <h2 className="text-xl font-semibold text-gray-900">Submit New Bug</h2>
         </div>

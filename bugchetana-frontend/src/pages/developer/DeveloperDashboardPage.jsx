@@ -140,7 +140,6 @@ export default function DeveloperDashboardPage() {
             <p className="text-2xl font-bold text-slate-800 mt-2">{openBugs.length}</p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
-            <Bug className="h-5 w-5 text-white" />
           </div>
         </div>
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center justify-between">

@@ -10,6 +10,8 @@ from .models import UserSession
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email as django_validate_email
+from django.contrib.auth.password_validation import validate_password as django_validate_password
+
 from rest_framework.exceptions import AuthenticationFailed
 
 MAX_FAILED_ATTEMPTS = 5
@@ -35,6 +37,13 @@ class RegisterSerializer(serializers.ModelSerializer):
                "This email is already registered. Please log in or use a different email address."
            )
        return value
+
+    def validate_password(self, value):
+        try:
+            django_validate_password(value)  # runs AUTH_PASSWORD_VALIDATORS from settings.py
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value
 
     def validate(self, data):
         if data['password'] != data['password2']:

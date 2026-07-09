@@ -113,7 +113,9 @@ class BugComment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Comment by {self.user.email} on Bug #{self.bug.id}"
+        user_email = getattr(self.user, 'email', "Unknown user")
+        bug_id = getattr(self.bug, 'id', "Unknown")
+        return f"Comment by {user_email} on Bug #{bug_id}"
 
     class Meta:
         db_table = 'bug_comments'
