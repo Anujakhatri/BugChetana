@@ -98,13 +98,23 @@ class HasBugAccess(BasePermission):
         return can_view_bug(request.user, bug)
 
 class CanCreateBug(HasProjectAccess):
-    """Only developers who are project members can create bugs."""
+    """Project members (Developer, QA, Release Manager) can report bugs."""
     message = "You do not have permission to create bugs in this project."
 
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        return get_role(request.user) in ['Developer']
+        return get_role(request.user) in ['Developer', 'QA', 'Release Manager']
+
+
+class CanCreateBugList(HasProjectAccess):
+    """Only QA members who are project members can create bug lists."""
+    message = "You do not have permission to create bug lists in this project."
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        return get_role(request.user) == 'QA'
 
 
 class CanSubmitQAResult(BasePermission):

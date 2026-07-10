@@ -6,8 +6,8 @@ from ai_integration import ml_service
 
 def test_predict_severity_returns_valid_choice():
     result = ml_service.predict_severity(
-        "Login fails with 500 error",
-        "Users cannot log in, server returns 500 internal server error on every attempt.",
+        "Login fails with 500 error.txt",
+        "Users cannot log in, server returns 500 internal server error.txt on every attempt.",
     )
     assert result in ('low', 'medium', 'high', 'critical')
 

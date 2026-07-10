@@ -84,18 +84,23 @@ def test_dev_member_can_create_bug(api_client, dev_user, token_project, setup_me
     assert response.data['title'] == "New Bug"
 
 
-def test_qa_member_cannot_create_bug(api_client, qa_user, token_project, setup_members, get_tokens):
+def test_qa_member_can_create_bug(api_client, qa_user, token_project, setup_members, get_tokens):
+    """QA project members can report bugs (Stage 1 of the lifecycle)."""
     tokens = get_tokens(qa_user.email)
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
 
     url = reverse('bug-list-create', kwargs={'project_id': token_project.id})
     data = {
-        "title": "New Bug",
-        "description": "Bug description",
+        "title": "QA-reported Bug",
+        "description": "Found by QA",
         "priority": "high"
     }
     response = api_client.post(url, data)
-    assert response.status_code == 403
+    assert response.status_code == 201
+    assert response.data['title'] == "QA-reported Bug"
+    # Confirm the bug was actually persisted with QA as the creator
+    bug = Bug.objects.get(title="QA-reported Bug")
+    assert bug.created_by == qa_user
 
 
 def test_dev_member_can_list_assigned_bugs(api_client, dev_user, token_project, setup_members, token_bug, get_tokens):
@@ -181,6 +186,56 @@ def test_dashboard_summary_view(api_client, rm_user, token_project, setup_member
     assert response.data['severity_breakdown'] == {'medium': 1}
 
 
+def test_qa_can_list_own_submitted_bugs(api_client, qa_user, token_project, setup_members, get_tokens):
+    """Stage 3: QA can fetch bugs they personally reported via /bugs/mine/.
+
+    The endpoint was previously Developer-only. After the lifecycle scope-down
+    QA can create bugs, and the QaBugListPage 'Recently reported' panel reads
+    from this endpoint to surface uncategorized bugs.
+    """
+    Bug.objects.create(
+        title="QA-reported A",
+        description="first",
+        project=token_project,
+        created_by=qa_user,
+        severity="low",
+    )
+    Bug.objects.create(
+        title="QA-reported B",
+        description="second",
+        project=token_project,
+        created_by=qa_user,
+        severity="high",
+    )
+    # A bug created by a different user should NOT appear in the QA's list.
+    Bug.objects.create(
+        title="Dev's bug",
+        description="not mine",
+        project=token_project,
+        created_by=token_project.created_by if hasattr(token_project, "created_by") else None,
+    )
+
+    tokens = get_tokens(qa_user.email)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+    response = api_client.get("/api/bugs/mine/", {"project_id": token_project.id})
+    assert response.status_code == 200
+    # The endpoint always scopes to the caller.
+    titles = [b["title"] for b in response.data]
+    assert "QA-reported A" in titles
+    assert "QA-reported B" in titles
+    # Sanity: a bug not created by the QA must not leak in.
+    assert all(t.startswith("QA-reported") for t in titles)
+
+
+def test_dev_can_list_own_submitted_bugs(api_client, dev_user, token_project, setup_members, token_bug, get_tokens):
+    """Sanity: developers still see their own submitted bugs after the role gate was relaxed."""
+    tokens = get_tokens(dev_user.email)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+    response = api_client.get("/api/bugs/mine/", {"project_id": token_project.id})
+    assert response.status_code == 200
+    assert any(b["title"] == token_bug.title for b in response.data)
+
+
 def _bug_list_count(response):
     if 'results' in response.data:
         return len(response.data['results'])
@@ -245,29 +300,33 @@ class TestBugCreate:
         assert response.status_code == 201
         assert response.data['title'] == 'New Bug'
 
-    def test_qa_cannot_create_bug(self, qa_client, project_with_members):
+    def test_qa_can_create_bug(self, qa_client, project_with_members):
+        """QA project members can report bugs (Stage 1 of the lifecycle)."""
         response = qa_client.post(
             f'/api/projects/{project_with_members.id}/bugs/',
             {
-                'title': 'QA Bug Attempt',
-                'description': 'QA should not create bugs',
+                'title': 'QA Bug Report',
+                'description': 'Found by QA',
                 'severity': 'low',
                 'priority': 'low'
             }
         )
-        assert response.status_code == 403
+        assert response.status_code == 201
+        assert response.data['title'] == 'QA Bug Report'
 
-    def test_rm_cannot_create_bug(self, rm_client, project_with_members):
+    def test_rm_can_create_bug(self, rm_client, project_with_members):
+        """Release Manager project members can report bugs (Stage 1 of the lifecycle)."""
         response = rm_client.post(
             f'/api/projects/{project_with_members.id}/bugs/',
             {
-                'title': 'RM Bug Attempt',
-                'description': 'RM should not create bugs',
+                'title': 'RM Bug Report',
+                'description': 'Reported by RM',
                 'severity': 'low',
                 'priority': 'low'
             }
         )
-        assert response.status_code == 403
+        assert response.status_code == 201
+        assert response.data['title'] == 'RM Bug Report'
 
     def test_unauthenticated_cannot_create_bug(self, api_client, project_with_members):
         response = api_client.post(

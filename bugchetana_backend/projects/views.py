@@ -81,12 +81,12 @@ class AddProjectMemberView(APIView):
         project = get_object_or_404(Project, id=project_id)
         user_id = request.data.get('user_id')
         if not user_id:
-            return Response({'error': 'user_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error.txt': 'user_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             member_user = User.objects.select_related('role').get(pk=user_id)
         except User.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error.txt': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
         role = get_role(request.user)
         member_role = member_user.role.name if member_user.role else None
@@ -94,13 +94,13 @@ class AddProjectMemberView(APIView):
         if role == 'QA':
             if member_role != 'Developer':
                 return Response(
-                    {'error': 'QA can only assign Developer users to a project.'},
+                    {'error.txt': 'QA can only assign Developer users to a project.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         elif role == 'Release Manager':
             if member_role not in ('Developer', 'QA'):
                 return Response(
-                    {'error': 'Only Developer or QA users can be added to a project.'},
+                    {'error.txt': 'Only Developer or QA users can be added to a project.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -110,7 +110,7 @@ class AddProjectMemberView(APIView):
             defaults={'assigned_by': request.user},
         )
         if not created:
-            return Response({'error': 'User is already a project member.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error.txt': 'User is already a project member.'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = ProjectMemberSerializer(member)
         if member_role == 'Developer':
@@ -138,4 +138,4 @@ class RemoveProjectMemberView(APIView):
             member.delete()
             return Response({'message': 'Member removed'}, status=status.HTTP_200_OK)
         except ProjectMember.DoesNotExist:
-            return Response({'error': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error.txt': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)

@@ -30,7 +30,7 @@ class PredictSeverityView(APIView):
 
         if not title and not description:
             return Response(
-                {'error': 'title or description is required.'},
+                {'error.txt': 'title or description is required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -39,7 +39,7 @@ class PredictSeverityView(APIView):
         except Exception as e:
             logger.warning(f"Severity prediction failed: {e}")
             return Response(
-                {'error': 'Severity prediction is temporarily unavailable.'},
+                {'error.txt': 'Severity prediction is temporarily unavailable.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -58,7 +58,7 @@ class GuestAIReviewView(APIView):
 
         if not title and not description:
             return Response(
-                {'error': 'title or description is required.'},
+                {'error.txt': 'title or description is required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -70,7 +70,7 @@ class GuestAIReviewView(APIView):
         except Exception as e:
             logger.warning(f"Guest AI review failed: {e}")
             return Response(
-                {'error': 'AI review is temporarily unavailable. Try again shortly.'},
+                {'error.txt': 'AI review is temporarily unavailable. Try again shortly.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -91,7 +91,7 @@ class BugRoastView(APIView):
         except Exception as e:
             logger.warning(f"Groq roast generation failed for bug {bug_id}: {e}")
             return Response(
-                {"error": "Roast generation is temporarily unavailable. Try again shortly."},
+                {"error.txt": "Roast generation is temporarily unavailable. Try again shortly."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -112,7 +112,7 @@ class BugSuggestFixView(APIView):
         except Exception as e:
             logger.warning(f"Groq suggest_fix failed for bug {bug_id}: {e}")
             return Response(
-                {"error": "Fix suggestion is temporarily unavailable. Try again shortly."},
+                {"error.txt": "Fix suggestion is temporarily unavailable. Try again shortly."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 

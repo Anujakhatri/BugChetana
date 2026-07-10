@@ -3,7 +3,7 @@ import { getUsers, getRoles, updateUserRole } from '@/api/users';
 import PageContainer from '@/components/layout/PageContainer';
 import { Loader2, Check } from 'lucide-react';
 
-export default function UserManagement() {
+export default function UserManagement({ embedded = false }) {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,15 +55,19 @@ export default function UserManagement() {
   };
 
   if (loading) {
-    return (
+    return embedded ? (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+      </div>
+    ) : (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
       </div>
     );
   }
 
-  return (
-    <PageContainer maxWidth="3xl" innerClassName="space-y-4">
+  const content = (
+    <>
         <h1 className="text-xl font-semibold text-gray-900">User Role Management</h1>
         {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -114,6 +118,16 @@ export default function UserManagement() {
             </tbody>
           </table>
         </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="space-y-4">{content}</div>;
+  }
+
+  return (
+    <PageContainer maxWidth="3xl" innerClassName="space-y-4">
+      {content}
     </PageContainer>
   );
 }

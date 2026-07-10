@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { homeFor } from '@/pages/roleHome';
 import { useProject } from '@/context/ProjectContext';
 import { createBug } from '@/api/bugs';
 import { getRoast } from '@/api/ai';
@@ -27,6 +29,7 @@ function extractApiError(err, fallback) {
 export default function NewBug() {
   const navigate = useNavigate();
   const { currentProject, loadingProjects } = useProject();
+  const { user } = useAuth();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -96,8 +99,8 @@ export default function NewBug() {
   // ─── Success panel — shown after the bug is created ───────────────
   if (createdBug) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="space-y-6">
+        <div className="w-full max-w-2xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex items-center space-x-3">
             <div className="bg-green-100 p-2 rounded-lg">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -171,7 +174,7 @@ export default function NewBug() {
             <div className="pt-4 flex gap-3">
               <button
                 type="button"
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate(homeFor(user?.roleName || ''))}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
               >
                 Go to Dashboard
@@ -196,11 +199,10 @@ export default function NewBug() {
 
   // ─── Form ───────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="space-y-6">
+      <div className="w-full max-w-2xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center space-x-3">
           <div className="bg-blue-100 p-2 rounded-lg">
-            <Bug className="h-5 w-5 text-blue-600" />
           </div>
           <h2 className="text-xl font-semibold text-gray-900">Submit New Bug</h2>
         </div>
@@ -252,21 +254,6 @@ export default function NewBug() {
             </div>
 
             <div>
-              {/*<label htmlFor="severity" className="block text-sm font-medium text-gray-700 mb-1">*/}
-              {/*  Severity <span className="text-red-500">*</span>*/}
-              {/*</label>*/}
-              {/*<select*/}
-              {/*  id="severity"*/}
-              {/*  name="severity"*/}
-              {/*  value={formData.severity}*/}
-              {/*  onChange={handleChange}*/}
-              {/*  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-shadow"*/}
-              {/*>*/}
-              {/*  <option value="low">Low</option>*/}
-              {/*  <option value="medium">Medium</option>*/}
-              {/*  <option value="high">High</option>*/}
-              {/*  <option value="critical">Critical</option>*/}
-              {/*</select>*/}
               <p className="text-xs text-gray-400 mt-1">
                 AI will also suggest a severity automatically once submitted.
               </p>
@@ -287,6 +274,13 @@ export default function NewBug() {
               ) : (
                 <span>Submit Bug</span>
               )}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(homeFor(user?.roleName || ''))}
+              className="flex-1 ml-3 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+            >
+              Go to Dashboard
             </button>
           </div>
         </form>

@@ -1,5 +1,10 @@
 from rest_framework import serializers
-from .models import Bug, BugComment, BugHistory, Release, ReleaseBug, QAResult
+from .models import (
+    Bug, BugComment, BugHistory,
+    Release, ReleaseBug,
+    QAResult,
+    BugList, BugListItem,
+)
 from accounts.models import User
 
 
@@ -9,7 +14,9 @@ class BugCommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = BugComment
         fields = ('id', 'bug', 'user', 'user_name','comment_text', 'created_at')
-        read_only_fields = ('created_at', 'user')
+        # 'bug' is bound from the URL (bug_id kwarg) by the view's perform_create,
+        # and 'user' is bound from request.user — neither should come from the payload.
+        read_only_fields = ('bug', 'user', 'created_at')
 
 
 class BugHistorySerializer(serializers.ModelSerializer):
@@ -91,9 +98,10 @@ class QAResultSerializer(serializers.ModelSerializer):
     def validate(self, data):
         result = data.get('result')
         notes = (data.get('notes') or '').strip()
-        if result == 'fail' and not notes:
+        # Require notes for failure and explicit reassignment
+        if result in ('fail', 'reassign') and not notes:
             raise serializers.ValidationError(
-                {'notes': 'A comment is required when marking a bug as failed.'}
+                {'notes': 'A comment is required when marking a bug as failed or reassigned.'}
             )
         if notes:
             data['notes'] = notes
@@ -121,3 +129,102 @@ class BugResubmitSerializer(serializers.Serializer):
         if not data.get('title') and not data.get('description'):
             raise serializers.ValidationError('Provide an updated title or description to resubmit.')
         return data
+
+
+class DeveloperBugHistorySerializer(serializers.ModelSerializer):
+    submitted_at = serializers.DateTimeField(source='created_at', read_only=True)
+    latest_qa_result = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Bug
+        fields = (
+            'id', 'title', 'description', 'status', 'severity', 'predicted_severity',
+            'submitted_at', 'updated_at', 'latest_qa_result',
+        )
+
+    def get_latest_qa_result(self, obj):
+        qa = obj.qa_results.order_by('-tested_at').first()
+        if not qa:
+            return None
+        return {'result': qa.result, 'tested_at': qa.tested_at}
+
+
+class QAResultHistorySerializer(serializers.ModelSerializer):
+    title = serializers.CharField(source='bug.title', read_only=True)
+    developer = serializers.CharField(source='bug.assigned_to.name', read_only=True)
+    date = serializers.DateTimeField(source='tested_at', read_only=True)
+    result = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QAResult
+        fields = ('id', 'title', 'developer', 'result', 'date', 'notes')
+
+    def get_result(self, obj):
+        mapping = {
+            'pass': 'approved',
+            'fail': 'failed',
+            'reassign': 'reassigned',
+            'blocked': 'failed',
+        }
+        return mapping.get(obj.result, obj.result)
+
+
+class BugListSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.name', read_only=True)
+    bug_count = serializers.SerializerMethodField()
+    bug_ids = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BugList
+        fields = (
+            'id', 'name', 'project', 'created_by', 'created_by_name',
+            'bug_count', 'bug_ids', 'created_at',
+        )
+        read_only_fields = ('project', 'created_by', 'created_at')
+
+    def get_bug_count(self, obj):
+        return obj.items.count()
+
+    def get_bug_ids(self, obj):
+        return list(obj.items.values_list('bug_id', flat=True))
+
+
+class BugListItemAddSerializer(serializers.Serializer):
+    """Input for adding one or more existing Bugs to a BugList.
+
+    Accepts a single bug_id or a list of bug_ids. Validates that each bug
+    belongs to the same project as the BugList. Duplicates (against the
+    BugListItem unique_together constraint) are skipped silently at the
+    view level rather than rejected, matching the 'bulk add, skip
+    duplicates' requirement.
+    """
+    bug_id = serializers.IntegerField(required=False)
+    bug_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=False,
+    )
+
+    def validate(self, data):
+        if not data.get('bug_id') and not data.get('bug_ids'):
+            raise serializers.ValidationError(
+                'Provide bug_id (single) or bug_ids (bulk).'
+            )
+        return data
+
+    def to_ids(self, data):
+        ids = []
+        if data.get('bug_id') is not None:
+            ids.append(data['bug_id'])
+        if data.get('bug_ids'):
+            ids.extend(data['bug_ids'])
+        # preserve order, dedupe within the request
+        seen = set()
+        return [i for i in ids if not (i in seen or seen.add(i))]
+
+
+class BugListItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BugListItem
+        fields = ('id', 'bug_list', 'bug')
+        read_only_fields = ('id', 'bug_list', 'bug')
