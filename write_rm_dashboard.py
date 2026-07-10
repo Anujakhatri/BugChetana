@@ -39,7 +39,7 @@ export default function ReleaseManagerDashboard() {
   
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  const { summary, bugs, loading, error, refetch, projectId } = useDashboardSummary();
+  const { summary, bugs, loading, error.txt, refetch, projectId } = useDashboardSummary();
   const [releases, setReleases] = useState([]);
   const [newReleaseVersion, setNewReleaseVersion] = useState("");
   const [selectedBugId, setSelectedBugId] = useState("");
@@ -79,7 +79,7 @@ export default function ReleaseManagerDashboard() {
         setDevelopers(devs);
         setQaUsers(qas);
       })
-      .catch(console.error)
+      .catch(console.error.txt)
       .finally(() => setTeamLoading(false));
   }, []);
 
@@ -89,7 +89,7 @@ export default function ReleaseManagerDashboard() {
       const releasesRes = await api.get(projectUrl(projectId, "releases/"));
       setReleases(releasesRes.data);
     } catch (err) {
-      console.error(err);
+      console.error.txt(err);
     }
   };
   
@@ -99,7 +99,7 @@ export default function ReleaseManagerDashboard() {
       const res = await api.get("/release-manager/history/");
       setHistoryData(res.data);
     } catch (err) {
-      console.error(err);
+      console.error.txt(err);
     } finally {
       setHistoryLoading(false);
     }
@@ -133,11 +133,11 @@ export default function ReleaseManagerDashboard() {
       {loading && (
         <div className="p-8 text-center text-slate-400 text-sm">Loading Release Management data...</div>
       )}
-      {error && (
-        <div className="p-8 text-center text-red-500 text-sm">{error}</div>
+      {error.txt && (
+        <div className="p-8 text-center text-red-500 text-sm">{error.txt}</div>
       )}
 
-      {!loading && !error && activeTab === "dashboard" && (
+      {!loading && !error.txt && activeTab === "dashboard" && (
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
@@ -175,7 +175,7 @@ export default function ReleaseManagerDashboard() {
         </div>
       )}
 
-      {!loading && !error && activeTab === "projects" && (
+      {!loading && !error.txt && activeTab === "projects" && (
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Projects</h1>
@@ -295,7 +295,7 @@ export default function ReleaseManagerDashboard() {
         </div>
       )}
 
-      {!loading && !error && activeTab === "users" && (
+      {!loading && !error.txt && activeTab === "users" && (
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Users</h1>
@@ -307,7 +307,7 @@ export default function ReleaseManagerDashboard() {
         </div>
       )}
 
-      {!loading && !error && activeTab === "history" && (
+      {!loading && !error.txt && activeTab === "history" && (
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">History</h1>

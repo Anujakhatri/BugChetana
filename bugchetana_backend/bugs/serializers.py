@@ -14,7 +14,9 @@ class BugCommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = BugComment
         fields = ('id', 'bug', 'user', 'user_name','comment_text', 'created_at')
-        read_only_fields = ('created_at', 'user')
+        # 'bug' is bound from the URL (bug_id kwarg) by the view's perform_create,
+        # and 'user' is bound from request.user — neither should come from the payload.
+        read_only_fields = ('bug', 'user', 'created_at')
 
 
 class BugHistorySerializer(serializers.ModelSerializer):

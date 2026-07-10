@@ -74,7 +74,7 @@ export default function DeveloperDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   // Dashboard Summary & Bugs
-  const { summary, bugs, loading: dashboardLoading, error: dashboardError, refetch: fetchBugs, projectId, setProjectId } = useDashboardSummary();
+  const { summary, bugs, loading: dashboardLoading, error.txt: dashboardError, refetch: fetchBugs, projectId, setProjectId } = useDashboardSummary();
 
   // History state
   const [historyBugs, setHistoryBugs] = useState([]);
@@ -102,7 +102,7 @@ export default function DeveloperDashboard() {
     setHistoryLoading(true);
     getMySubmittedBugs(projectId)
       .then(setHistoryBugs)
-      .catch(console.error)
+      .catch(console.error.txt)
       .finally(() => setHistoryLoading(false));
   };
 
@@ -117,7 +117,7 @@ export default function DeveloperDashboard() {
         const res = await getBugComments(bugId);
         setCommentsMap((prev) => ({ ...prev, [bugId]: res }));
       } catch (err) {
-        console.error("Failed to fetch comments", err);
+        console.error.txt("Failed to fetch comments", err);
       }
     }
   };

@@ -79,7 +79,7 @@ export default function QaDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  const { summary, bugs, loading, error, refetch, projectId } = useDashboardSummary();
+  const { summary, bugs, loading, error.txt, refetch, projectId } = useDashboardSummary();
 
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -100,7 +100,7 @@ export default function QaDashboard() {
       const res = await api.get("/qa-results/mine/");
       setHistoryData(res.data);
     } catch (err) {
-      console.error(err);
+      console.error.txt(err);
     } finally {
       setHistoryLoading(false);
     }
@@ -155,9 +155,9 @@ export default function QaDashboard() {
       />
 
       {loading && <div className="p-8 text-center text-slate-500">Loading your dashboard...</div>}
-      {error && <div className="p-8 text-center text-red-500">{error}</div>}
+      {error.txt && <div className="p-8 text-center text-red-500">{error.txt}</div>}
 
-      {!loading && !error && activeTab === "dashboard" && (
+      {!loading && !error.txt && activeTab === "dashboard" && (
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -213,7 +213,7 @@ export default function QaDashboard() {
         </div>
       )}
 
-      {!loading && !error && activeTab === "developers" && (
+      {!loading && !error.txt && activeTab === "developers" && (
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">QA Queue</h1>
@@ -288,7 +288,7 @@ export default function QaDashboard() {
         </div>
       )}
 
-      {!loading && !error && activeTab === "history" && (
+      {!loading && !error.txt && activeTab === "history" && (
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">QA History</h1>
