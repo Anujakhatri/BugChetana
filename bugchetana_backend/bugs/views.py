@@ -23,6 +23,7 @@ from .permissions import (
     IsBugProjectMember,
     IsBugOwnerOrReleaseManager,
     CanCreateBug,
+    CanCreateBugList,
     HasProjectAccess,
     CanSubmitQAResult,
     CanManageRelease,
@@ -562,7 +563,6 @@ class BugListCreateViewForProject(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            from .permissions import CanCreateBugList
             return [IsAuthenticated(), CanCreateBugList()]
         return [IsAuthenticated(), HasProjectAccess()]
 

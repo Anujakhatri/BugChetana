@@ -1,5 +1,10 @@
 from rest_framework import serializers
-from .models import Bug, BugComment, BugHistory, Release, ReleaseBug, QAResult, BugList
+from .models import (
+    Bug, BugComment, BugHistory,
+    Release, ReleaseBug,
+    QAResult,
+    BugList, BugListItem,
+)
 from accounts.models import User
 
 
