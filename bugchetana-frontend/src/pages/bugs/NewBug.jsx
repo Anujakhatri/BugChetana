@@ -99,8 +99,8 @@ export default function NewBug() {
   // ─── Success panel — shown after the bug is created ───────────────
   if (createdBug) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="space-y-6">
+        <div className="w-full max-w-2xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex items-center space-x-3">
             <div className="bg-green-100 p-2 rounded-lg">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -199,8 +199,8 @@ export default function NewBug() {
 
   // ─── Form ───────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="space-y-6">
+      <div className="w-full max-w-2xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center space-x-3">
           <div className="bg-blue-100 p-2 rounded-lg">
           </div>
