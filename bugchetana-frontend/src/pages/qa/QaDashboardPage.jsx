@@ -11,6 +11,7 @@ import {
   ListChecks,
   ListFilter,
   Activity,
+  PlusSquare,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "@/api/axiosInstance";
@@ -110,7 +111,7 @@ export default function QaDashboardPage() {
       const { data } = await api.get("/dashboard/qa/");
       setQaDashboard(data);
     } catch (err) {
-      console.error("QA dashboard fetch error", err);
+      console.error("QA dashboard fetch error.txt", err);
       setQaDashboardError("Failed to load dashboard summary.");
     } finally {
       setQaDashboardLoading(false);
@@ -135,7 +136,7 @@ export default function QaDashboardPage() {
       const data = await getBugLists(projectId);
       setBugLists(data);
     } catch (err) {
-      console.error("Bug lists fetch error", err);
+      console.error("Bug lists fetch error.txt", err);
     } finally {
       setBugListsLoading(false);
     }
@@ -205,17 +206,12 @@ export default function QaDashboardPage() {
   // ─── Derived data ─────────────────────────────────────────
   // Per-project pending review table. The dashboard endpoint's pending_review_count
   // is global; this table is the action list for the selected project.
+  // Mirrors the backend's pending_review_count logic:
+  //   status='resolved' AND verified_by__isnull=True
   const pendingReviewBugs = useMemo(
-    () => bugs.filter((b) => PENDING_QA_STATUSES.has(b.status)),
+    () => bugs.filter((b) => b.status === "resolved" && !b.verified_by),
     [bugs]
   );
-
-  // Build a quick bug-by-id map for recent_activity cross-referencing.
-  const bugById = useMemo(() => {
-    const m = new Map();
-    bugs.forEach((b) => m.set(b.id, b));
-    return m;
-  }, [bugs]);
 
   // Per-bug-list status counts, derived client-side by cross-referencing each
   // list's bug_ids against the in-memory bug list. The /bug-lists/ endpoint
@@ -237,7 +233,6 @@ export default function QaDashboardPage() {
   const pendingReviewCount = qaDashboard?.pending_review_count ?? 0;
   const failedRecheckCount = qaDashboard?.failed_recheck_count ?? 0;
   const activeBugListsCount = qaDashboard?.active_bug_lists_count ?? 0;
-  const recentActivity = qaDashboard?.recent_activity || [];
 
   if (loading && qaDashboardLoading) {
     return <div className="p-8 text-center text-slate-500">Loading your dashboard...</div>;
@@ -355,6 +350,14 @@ export default function QaDashboardPage() {
               Click <span className="font-semibold text-slate-600">New Bug List</span> to create one
               — resolved and resubmitted bugs will be added automatically.
             </p>
+            <button
+              type="button"
+              onClick={() => navigate("/qa/submit-bug")}
+              className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              <PlusSquare className="h-3.5 w-3.5" />
+              Or report a new bug first
+            </button>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -514,54 +517,7 @@ export default function QaDashboardPage() {
         </div>
       </div>
 
-      {/* Recent activity feed — from the new dashboard endpoint. */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-2">
-          <Activity className="h-5 w-5 text-blue-600" />
-          <h2 className="text-base font-semibold text-slate-800">Recent Activity</h2>
-        </div>
-        {recentActivity.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="text-sm text-slate-500">No recent activity yet.</p>
-            <p className="text-xs text-slate-400 mt-1">
-              Pass/fail decisions and status changes will appear here as they happen.
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {recentActivity.map((item) => {
-              const bug = bugById.get(item.bug_id);
-              const bugLabel = bug ? `#${bug.id} · ${bug.title}` : `Bug #${item.bug_id}`;
-              const isQa = item.type === "qa_result";
-              return (
-                <button
-                  key={`${item.type}-${item.id}`}
-                  type="button"
-                  onClick={() => navigate(`/bugs/${item.bug_id}`)}
-                  className="w-full text-left px-6 py-3.5 hover:bg-slate-50 transition-colors flex items-center gap-3"
-                >
-                  <span
-                    className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${
-                      isQa
-                        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                        : "bg-blue-50 text-blue-700 border-blue-200"
-                    }`}
-                  >
-                    {isQa ? "QA" : "History"}
-                  </span>
-                  <span className="text-sm text-slate-700 flex-1 min-w-0 truncate">
-                    {isQa ? "QA result" : "Status change"} ·{" "}
-                    <span className="font-medium text-slate-900">{bugLabel}</span>
-                  </span>
-                  <span className="text-xs text-slate-400 shrink-0">
-                    {timeAgo(item.timestamp)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {/* Recent activity feed — moved to /qa/history. */}
     </div>
   );
 }

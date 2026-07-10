@@ -15,6 +15,7 @@ const NAV_BY_ROLE = {
   ],
   QA: [
     { to: '/qa/dashboard', match: '/qa/dashboard', end: true, label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/qa/submit-bug', match: '/qa/submit-bug', end: true, label: 'Report Bug', icon: PlusSquare },
     { to: '/qa/bug-list', match: '/qa/bug-list', end: true, label: 'Bug Lists', icon: List },
     { to: '/qa/history', match: '/qa/history', end: true, label: 'History', icon: History },
     { to: '/qa/profile', match: '/qa/profile', end: true, label: 'Profile', icon: UserCircle },
@@ -22,7 +23,7 @@ const NAV_BY_ROLE = {
   'Release Manager': [
     { to: '/release-manager/dashboard', match: '/release-manager/dashboard', end: true, label: 'Dashboard', icon: LayoutDashboard },
     { to: '/release-manager/users', match: '/release-manager/users', end: true, label: 'Users', icon: Users },
-    { to: '/release-manager/reports', match: '/release-manager/reports', end: true, label: 'Reports', icon: FileText },
+    // { to: '/release-manager/reports', match: '/release-manager/reports', end: true, label: 'Reports', icon: FileText },
     { to: '/release-manager/submit-bug', match: '/release-manager/submit-bug', end: true, label: 'Submit Bug', icon: PlusSquare },
     { to: '/release-manager/history', match: '/release-manager/history', end: true, label: 'History', icon: History },
     { to: '/release-manager/profile', match: '/release-manager/profile', end: true, label: 'Profile', icon: UserCircle },

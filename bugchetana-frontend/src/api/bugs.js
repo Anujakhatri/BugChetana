@@ -55,5 +55,19 @@ export const getBugLists = (projectId) =>
 export const createBugList = (projectId, name) =>
   api.post(`/projects/${projectId}/bug-lists/`, { name }).then(res => res.data);
 
+// Bulk-add one or more existing Bug IDs to a BugList.
+// Backend accepts either {bug_id} or {bug_ids: [...]}; we always send the
+// bulk form to keep the client path uniform.
+export const addBugsToList = (projectId, bugListId, bugIds) =>
+  api
+    .post(`/projects/${projectId}/bug-lists/${bugListId}/items/`, { bug_ids: bugIds })
+    .then(res => res.data);
+
+export const verifyBug = (bugId) =>
+  api.patch(`/bugs/${bugId}/verify/`).then(res => res.data);
+
+export const listUsers = (params = {}) =>
+  api.get('/auth/users/', { params }).then(res => res.data);
+
 export const getReleaseManagerHistory = () =>
   api.get('/release-manager/history/').then(res => res.data);

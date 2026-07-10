@@ -65,7 +65,7 @@ export default function Register() {
         setError(Array.isArray(firstError) ? firstError[0] : firstError);
       } else if (typeof data === "string" && data.toLowerCase().includes("<html")) {
         console.error("Server Error:", data);
-        setError("An unexpected server error occurred. Please try again later.");
+        setError("An unexpected server error.txt occurred. Please try again later.");
       } else {
         setError(typeof data === "string" ? data : "Registration failed.");
       }
@@ -175,7 +175,7 @@ export default function Register() {
             </span>
           </label>
 
-          {/* error message */}
+          {/* error.txt message */}
           {error && (
             <p className="text-sm text-red-500 text-center">{error}</p>
           )}

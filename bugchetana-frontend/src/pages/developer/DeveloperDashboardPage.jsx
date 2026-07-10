@@ -92,7 +92,7 @@ export default function DeveloperDashboardPage() {
       const { data } = await api.get("/dashboard/developer/");
       setDevDashboard(data);
     } catch (err) {
-      console.error("Developer dashboard fetch error", err);
+      console.error("Developer dashboard fetch error.txt", err);
       setDevDashboardError("Failed to load dashboard summary.");
     } finally {
       setDevDashboardLoading(false);

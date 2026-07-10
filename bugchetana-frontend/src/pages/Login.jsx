@@ -23,7 +23,7 @@ export default function Login() {
   const { setUser } = useAuth();  //global user set garna
   const navigate = useNavigate();  //login pachi redirect
   const [searchParams] = useSearchParams();
-  const [error, setError] = useState(""); //backend ko error dekhauna
+  const [error, setError] = useState(""); //backend ko error.txt dekhauna
   //yo input components haru backend ma pathaincha
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
@@ -97,7 +97,7 @@ export default function Login() {
 
       if (typeof data === "string" && data.toLowerCase().includes("<html")) {
         console.error("Server Error:", data);
-        setError("An unexpected server error occurred. Please try again later.");
+        setError("An unexpected server error.txt occurred. Please try again later.");
         return;
       }
       const message = data?.detail || (typeof data === "string" ? data : "Login failed.");

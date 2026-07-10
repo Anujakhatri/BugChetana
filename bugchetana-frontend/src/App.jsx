@@ -19,11 +19,11 @@ import DeveloperHistoryPage from './pages/developer/DeveloperHistoryPage.jsx';
 // QA pages
 import QaDashboardPage from './pages/qa/QaDashboardPage.jsx';
 import QaBugListPage from './pages/qa/QaBugListPage.jsx';
+import QaBugListDetailPage from './pages/qa/QaBugListDetailPage.jsx';
 import QaHistoryPage from './pages/qa/QaHistoryPage.jsx';
 // Release Manager pages
 import RmDashboardPage from './pages/release-manager/RmDashboardPage.jsx';
 import RmUsersPage from './pages/release-manager/RmUsersPage.jsx';
-import RmReportsPage from './pages/release-manager/RmReportsPage.jsx';
 import RmHistoryPage from './pages/release-manager/RmHistoryPage.jsx';
 // Developer bug creation
 import NewBug from './pages/bugs/NewBug.jsx';
@@ -74,7 +74,9 @@ function App() {
                     }>
                         <Route index element={<QaDashboardPage />} />
                         <Route path="dashboard" element={<QaDashboardPage />} />
+                        <Route path="submit-bug" element={<SubmitBug severityOnly={false} isAuthenticated={true} />} />
                         <Route path="bug-list" element={<QaBugListPage />} />
+                        <Route path="bug-lists/:id" element={<QaBugListDetailPage />} />
                         <Route path="history" element={<QaHistoryPage />} />
                         <Route path="profile" element={<RoleProfilePage />} />
                     </Route>
@@ -90,8 +92,7 @@ function App() {
                         <Route index element={<RmDashboardPage />} />
                         <Route path="dashboard" element={<RmDashboardPage />} />
                         <Route path="users" element={<RmUsersPage />} />
-                        <Route path="reports" element={<RmReportsPage />} />
-                        <Route path="submit-bug" element={<SubmitBug severityOnly={true} />} />
+                        <Route path="submit-bug" element={<SubmitBug severityOnly={true} isAuthenticated={true} />} />
                         <Route path="history" element={<RmHistoryPage />} />
                         <Route path="profile" element={<RoleProfilePage />} />
                     </Route>

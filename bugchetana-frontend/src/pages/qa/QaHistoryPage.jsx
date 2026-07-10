@@ -1,17 +1,46 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Activity } from "lucide-react";
 import api from "@/api/axiosInstance";
+import { timeAgo } from "@/components/shared/DashboardBadges";
 
 export default function QaHistoryPage() {
-  const [historyData, setHistoryData] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const navigate = useNavigate();
+  // Source: GET /api/dashboard/qa/ — same feed that lived on the QA Dashboard
+  // "Recent Activity" widget. Capped server-side at 15 items
+  // (RECENT_ACTIVITY_LIMIT in bugs/views.py); not bumped in this pass.
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [bugs, setBugs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setHistoryLoading(true);
-    api.get("/qa-results/mine/")
-      .then((res) => setHistoryData(res.data))
-      .catch(console.error)
-      .finally(() => setHistoryLoading(false));
+    let alive = true;
+    setLoading(true);
+    Promise.all([
+      api.get("/dashboard/qa/"),
+      api.get("/bugs/").catch(() => ({ data: [] })),
+    ])
+      .then(([dashRes, bugsRes]) => {
+        if (!alive) return;
+        setRecentActivity(dashRes.data?.recent_activity || []);
+        setBugs(bugsRes.data || []);
+      })
+      .catch((err) => {
+        console.error(err);
+        if (!alive) return;
+        setRecentActivity([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
+
+  // Build a quick bug-by-id map for activity cross-referencing.
+  const bugById = new Map();
+  bugs.forEach((b) => bugById.set(b.id, b));
 
   return (
     <div className="space-y-6">
@@ -21,43 +50,52 @@ export default function QaHistoryPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-2">
+          <Activity className="h-5 w-5 text-blue-600" />
           <h2 className="text-base font-semibold text-slate-800">Activity Log</h2>
         </div>
 
-        {historyLoading ? (
+        {loading ? (
           <div className="p-8 text-center text-slate-500">Loading history...</div>
-        ) : historyData.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">No QA activity found.</div>
+        ) : recentActivity.length === 0 ? (
+          <div className="p-8 text-center">
+            <p className="text-sm text-slate-500">No QA activity found.</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Pass/fail decisions and status changes will appear here as they happen.
+            </p>
+          </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {historyData.map((record) => (
-              <div key={record.id} className="p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4 hover:bg-slate-50 transition-colors">
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-slate-800">
-                    {record.bug?.title || `Bug #${record.bug?.id}`}
-                  </h3>
-                  {record.notes && (
-                    <p className="text-sm text-slate-600 bg-white border border-slate-200 p-3 rounded-lg shadow-sm">
-                      <span className="font-semibold text-slate-800 mr-2">Notes:</span>
-                      {record.notes}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border capitalize ${
-                    record.result === "pass" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                    record.result === "fail" ? "bg-rose-50 text-rose-700 border-rose-200" :
-                    "bg-indigo-50 text-indigo-700 border-indigo-200"
-                  }`}>
-                    {record.result}
+            {recentActivity.map((item) => {
+              const bug = bugById.get(item.bug_id);
+              const bugLabel = bug ? `#${bug.id} · ${bug.title}` : `Bug #${item.bug_id}`;
+              const isQa = item.type === "qa_result";
+              return (
+                <button
+                  key={`${item.type}-${item.id}`}
+                  type="button"
+                  onClick={() => navigate(`/bugs/${item.bug_id}`)}
+                  className="w-full text-left px-6 py-3.5 hover:bg-slate-50 transition-colors flex items-center gap-3"
+                >
+                  <span
+                    className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${
+                      isQa
+                        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                        : "bg-blue-50 text-blue-700 border-blue-200"
+                    }`}
+                  >
+                    {isQa ? "QA" : "History"}
                   </span>
-                  <span className="text-xs text-slate-400">
-                    {new Date(record.tested_at).toLocaleString()}
+                  <span className="text-sm text-slate-700 flex-1 min-w-0 truncate">
+                    {isQa ? "QA result" : "Status change"} ·{" "}
+                    <span className="font-medium text-slate-900">{bugLabel}</span>
                   </span>
-                </div>
-              </div>
-            ))}
+                  <span className="text-xs text-slate-400 shrink-0">
+                    {timeAgo(item.timestamp)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

@@ -41,7 +41,7 @@ export function useDashboardSummary() {
       setSummary(summaryRes.data);
       setBugs(bugsRes.data);
     } catch (err) {
-      console.error('Dashboard fetch error', err);
+      console.error('Dashboard fetch error.txt', err);
       setError('Failed to load dashboard data.');
     } finally {
       setLoading(false);
