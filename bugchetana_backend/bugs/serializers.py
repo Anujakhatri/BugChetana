@@ -179,3 +179,44 @@ class BugListSerializer(serializers.ModelSerializer):
 
     def get_bug_ids(self, obj):
         return list(obj.items.values_list('bug_id', flat=True))
+
+
+class BugListItemAddSerializer(serializers.Serializer):
+    """Input for adding one or more existing Bugs to a BugList.
+
+    Accepts a single bug_id or a list of bug_ids. Validates that each bug
+    belongs to the same project as the BugList. Duplicates (against the
+    BugListItem unique_together constraint) are skipped silently at the
+    view level rather than rejected, matching the 'bulk add, skip
+    duplicates' requirement.
+    """
+    bug_id = serializers.IntegerField(required=False)
+    bug_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=False,
+    )
+
+    def validate(self, data):
+        if not data.get('bug_id') and not data.get('bug_ids'):
+            raise serializers.ValidationError(
+                'Provide bug_id (single) or bug_ids (bulk).'
+            )
+        return data
+
+    def to_ids(self, data):
+        ids = []
+        if data.get('bug_id') is not None:
+            ids.append(data['bug_id'])
+        if data.get('bug_ids'):
+            ids.extend(data['bug_ids'])
+        # preserve order, dedupe within the request
+        seen = set()
+        return [i for i in ids if not (i in seen or seen.add(i))]
+
+
+class BugListItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BugListItem
+        fields = ('id', 'bug_list', 'bug')
+        read_only_fields = ('id', 'bug_list', 'bug')

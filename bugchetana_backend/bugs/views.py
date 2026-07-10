@@ -16,6 +16,7 @@ from .serializers import (
     BugSerializer, BugCreateSerializer, BugCommentSerializer, BugHistorySerializer,
     ReleaseSerializer, QAResultSerializer, BugAssignSerializer, BugResubmitSerializer,
     BugListSerializer, QAResultHistorySerializer, DeveloperBugHistorySerializer,
+    BugListItemAddSerializer, BugListItemSerializer,
 )
 from .access import visible_bugs_for
 from .permissions import (
@@ -374,6 +375,8 @@ class DashboardSummaryView(APIView):
     def get(self, request, project_id):
         bugs = visible_bugs_for(request.user, project_id=project_id)
         severity_breakdown = bugs.values('severity').annotate(count=Count('severity'))
+        status_breakdown_rows = bugs.values('status').annotate(count=Count('status'))
+        status_breakdown = {row['status']: row['count'] for row in status_breakdown_rows}
 
         return Response({
             "total_bugs": bugs.count(),
@@ -381,6 +384,134 @@ class DashboardSummaryView(APIView):
             "resolved_bugs": bugs.filter(status='resolved').count(),
             "failed_bugs": bugs.filter(status='failed').count(),
             "severity_breakdown": {item['severity']: item['count'] for item in severity_breakdown},
+            # New: dynamic status breakdown dict (e.g. {"open": 3, "in_progress": 1, ...}).
+            # QaDashboardPage / DeveloperDashboardPage read this; RmDashboardPage uses
+            # severity_breakdown and remains unaffected.
+            "status_breakdown": status_breakdown,
+        })
+
+
+RECENT_ACTIVITY_LIMIT = 15
+
+
+def _recent_activity_for_bug_qs(bug_qs, *, limit=RECENT_ACTIVITY_LIMIT):
+    """Merge QAResult and BugHistory rows touching any bug in *bug_qs*.
+
+    Returns at most *limit* items, newest first, with shape:
+        {id, type, bug_id, project_id, timestamp}
+    where type is 'qa_result' or 'bug_history'.
+    """
+    visible_bug_ids = bug_qs.values_list('id', flat=True)
+
+    qa = (
+        QAResult.objects
+        .filter(bug_id__in=visible_bug_ids)
+        .values('id', 'bug_id', 'bug__project_id', 'tested_at')
+        .order_by('-tested_at')[:limit]
+    )
+    history = (
+        BugHistory.objects
+        .filter(bug_id__in=visible_bug_ids)
+        .values('id', 'bug_id', 'bug__project_id', 'changed_at')
+        .order_by('-changed_at')[:limit]
+    )
+
+    items = []
+    for row in qa:
+        items.append({
+            'id': row['id'],
+            'type': 'qa_result',
+            'bug_id': row['bug_id'],
+            'project_id': row['bug__project_id'],
+            'timestamp': row['tested_at'],
+        })
+    for row in history:
+        items.append({
+            'id': row['id'],
+            'type': 'bug_history',
+            'bug_id': row['bug_id'],
+            'project_id': row['bug__project_id'],
+            'timestamp': row['changed_at'],
+        })
+
+    items.sort(key=lambda r: r['timestamp'], reverse=True)
+    return items[:limit]
+
+
+class QaDashboardSummaryView(APIView):
+    """GET /api/dashboard/qa/  — summary for the logged-in QA user."""
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        user = request.user
+        from projects.models import ProjectMember
+
+        # Scope: bugs in projects the QA is a member of (per visible_bugs_for for QA).
+        visible = visible_bugs_for(user)
+        # Build a {bug_id: project_id} lookup so we can return project_id in activity items
+        # without an extra join per row.
+        project_id_by_bug = dict(
+            visible.values_list('id', 'project_id')
+        )
+
+        pending_review_count = visible.filter(
+            status='resolved', verified_by__isnull=True,
+        ).count()
+
+        failed_recheck_count = visible.filter(
+            status__in=('failed', 'resubmitted'),
+        ).count()
+
+        # active_bug_lists_count = BugLists in this QA's member projects
+        member_project_ids = ProjectMember.objects.filter(user=user).values_list(
+            'project_id', flat=True
+        )
+        active_bug_lists_count = BugList.objects.filter(
+            project_id__in=member_project_ids,
+        ).count()
+
+        recent_activity = _recent_activity_for_bug_qs(visible)
+
+        return Response({
+            'pending_review_count': pending_review_count,
+            'failed_recheck_count': failed_recheck_count,
+            'active_bug_lists_count': active_bug_lists_count,
+            'recent_activity': recent_activity,
+        })
+
+
+class DeveloperDashboardSummaryView(APIView):
+    """GET /api/dashboard/developer/  — summary for the logged-in Developer."""
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        user = request.user
+
+        # For a developer, "their bugs" = bugs assigned_to=user.
+        # visible_bugs_for(Developer) already returns exactly that (no project scope).
+        assigned = visible_bugs_for(user)
+
+        # Group by status. We use a single annotated query so the dict reflects
+        # exactly the rows in *assigned* (no off-by-one from chaining filters).
+        status_rows = (
+            assigned.values('status')
+            .annotate(count=Count('status'))
+        )
+        assigned_by_status = {row['status']: row['count'] for row in status_rows}
+        # Ensure all six known statuses appear in the response (default 0).
+        for s in ('open', 'in_progress', 'resolved', 'failed', 'resubmitted', 'closed'):
+            assigned_by_status.setdefault(s, 0)
+
+        needs_attention_count = assigned.filter(
+            status__in=('failed', 'resubmitted'),
+        ).count()
+
+        recent_activity = _recent_activity_for_bug_qs(assigned)
+
+        return Response({
+            'assigned_by_status': assigned_by_status,
+            'needs_attention_count': needs_attention_count,
+            'recent_activity': recent_activity,
         })
 
 
@@ -458,6 +589,120 @@ class BugListCreateViewForProject(generics.ListCreateAPIView):
                 message=f'A new bug list "{bug_list.name}" was created for project "{project.name}".',
                 related_project=project,
             )
+
+
+class BugListItemAddView(APIView):
+    """
+    POST /api/projects/<project_id>/bug-lists/<bug_list_id>/items/
+
+    Bulk-add one or more existing Bug IDs to a BugList as BugListItems.
+    Accepts either {bug_id: <int>} for a single add, or
+    {bug_ids: [<int>, ...]} for a bulk add. Duplicates (already present
+    on the list, per the unique_together constraint) are skipped
+    silently. Bugs must belong to the same project as the BugList.
+    """
+    permission_classes = (IsAuthenticated, CanCreateBugList)
+
+    def post(self, request, project_id, bug_list_id):
+        bug_list = get_object_or_404(
+            BugList.objects.select_related('project'),
+            pk=bug_list_id,
+            project_id=project_id,
+        )
+
+        serializer = BugListItemAddSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        requested_ids = serializer.to_ids(serializer.validated_data)
+
+        # Filter to bugs in the same project; reject (or skip) cross-project ids.
+        valid_bugs = Bug.objects.filter(
+            id__in=requested_ids,
+            project_id=bug_list.project_id,
+        )
+        valid_ids = set(valid_bugs.values_list('id', flat=True))
+        missing_ids = [i for i in requested_ids if i not in valid_ids]
+        if missing_ids:
+            return Response(
+                {'bug_ids': [f'Bugs not found in this project: {missing_ids}']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Skip duplicates against existing BugListItems.
+        already_present = set(
+            BugListItem.objects.filter(
+                bug_list=bug_list, bug_id__in=valid_ids,
+            ).values_list('bug_id', flat=True)
+        )
+        to_create_ids = [i for i in valid_ids if i not in already_present]
+
+        created_items = []
+        for bug_id in to_create_ids:
+            item = BugListItem.objects.create(bug_list=bug_list, bug_id=bug_id)
+            created_items.append(item)
+
+        # Return the full updated list of bug_ids, plus counts.
+        return Response(
+            {
+                'bug_list_id': bug_list.id,
+                'requested_count': len(requested_ids),
+                'added_count': len(created_items),
+                'skipped_duplicates': sorted(already_present),
+                'bug_ids': list(
+                    BugListItem.objects.filter(bug_list=bug_list)
+                    .values_list('bug_id', flat=True)
+                ),
+                'items': BugListItemSerializer(created_items, many=True).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class BugVerifyView(APIView):
+    """
+    PATCH /api/bugs/<pk>/verify/
+
+    QA marks a resolved Bug as verified. Sets verified_by = request.user,
+    writes a BugHistory row (old_status == new_status == 'resolved'),
+    and notifies the assigned developer. Does NOT change bug.status and
+    does NOT create a QAResult row — verification is a separate audit
+    step from QA pass/fail.
+    """
+    permission_classes = (IsAuthenticated, CanSubmitQAResult)
+
+    def patch(self, request, pk):
+        bug = get_object_or_404(
+            Bug.objects.select_related('project'),
+            pk=pk,
+        )
+
+        if bug.status != 'resolved':
+            raise ValidationError(
+                {'status': f'Only resolved bugs can be verified (current: {bug.status}).'}
+            )
+
+        bug.verified_by = request.user
+        bug._changed_by = request.user
+        bug.save(update_fields=['verified_by'])
+
+        BugHistory.objects.create(
+            bug=bug,
+            changed_by=request.user,
+            old_status=bug.status,
+            new_status=bug.status,  # informational; status does not change
+        )
+
+        if bug.assigned_to:
+            create_notification(
+                recipient=bug.assigned_to,
+                message=(
+                    f'Your fix on Bug "{bug.title}" (#{bug.id}) was verified by QA '
+                    f'({request.user.name}).'
+                ),
+                related_bug=bug,
+                related_project=bug.project,
+            )
+
+        return Response(BugSerializer(bug).data, status=status.HTTP_200_OK)
 
 
 class ReleaseManagerHistoryView(APIView):
