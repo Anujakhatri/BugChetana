@@ -48,6 +48,7 @@ BugChetana is an AI-powered role-based bug tracking platform that predicts where
 ├── bugchetana_backend/       # Django REST API
 │   ├── accounts/             # Users, Roles, JWT Authentication
 │   ├── bugs/                 # Bug tracking, Comments, QA Results, Releases
+│   ├── notifications/        # Real-time notifications and alerts
 │   ├── projects/             # Project and Member management
 │   ├── ai_integration/       # XGBoost prediction & Groq Llama 3 API
 │   └── API_DOCUMENTATION.md  # Detailed API endpoint docs
