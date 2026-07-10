@@ -464,6 +464,12 @@ class QaDashboardSummaryView(APIView):
             status__in=('failed', 'resubmitted'),
         ).count()
 
+        # QA outcomes — bugs the QA has already acted on:
+        #   passed  = status 'closed'  (set when QA submits a 'pass' result)
+        #   failed  = status 'failed'  (set when QA submits a 'fail' result)
+        passed_count = visible.filter(status='closed').count()
+        failed_count = visible.filter(status='failed').count()
+
         # active_bug_lists_count = BugLists in this QA's member projects
         member_project_ids = ProjectMember.objects.filter(user=user).values_list(
             'project_id', flat=True
@@ -477,6 +483,8 @@ class QaDashboardSummaryView(APIView):
         return Response({
             'pending_review_count': pending_review_count,
             'failed_recheck_count': failed_recheck_count,
+            'passed_count': passed_count,
+            'failed_count': failed_count,
             'active_bug_lists_count': active_bug_lists_count,
             'recent_activity': recent_activity,
         })

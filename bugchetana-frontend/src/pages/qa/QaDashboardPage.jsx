@@ -232,6 +232,8 @@ export default function QaDashboardPage() {
   // Top cards pull from the new endpoint.
   const pendingReviewCount = qaDashboard?.pending_review_count ?? 0;
   const failedRecheckCount = qaDashboard?.failed_recheck_count ?? 0;
+  const passedCount = qaDashboard?.passed_count ?? 0;
+  const failedCount = qaDashboard?.failed_count ?? 0;
   const activeBugListsCount = qaDashboard?.active_bug_lists_count ?? 0;
 
   if (loading && qaDashboardLoading) {
@@ -267,7 +269,7 @@ export default function QaDashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-            Welcome back, {user?.name?.split(" ")[0]} 👋
+            Welcome back, {user?.name?.split(" ")[0]}
           </h1>
           <p className="text-slate-400 mt-1 text-sm">
             You have {pendingReviewCount} bug{pendingReviewCount === 1 ? "" : "s"} awaiting review
@@ -289,30 +291,59 @@ export default function QaDashboardPage() {
       </div>
 
       {/* Summary cards — from GET /api/dashboard/qa/ */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <SummaryCard
-          label="Pending Review"
-          value={pendingReviewCount}
-          iconBg="from-amber-500 to-amber-600"
-          icon={<AlertTriangle className="h-5 w-5 text-white" />}
-          highlight={pendingReviewCount > 0}
-          caption="Resolved bugs not yet verified"
-        />
-        <SummaryCard
-          label="Needs Recheck"
-          value={failedRecheckCount}
-          iconBg="from-rose-500 to-rose-600"
-          icon={<RotateCcw className="h-5 w-5 text-white" />}
-          highlight={failedRecheckCount > 0}
-          caption="Failed or resubmitted across your projects"
-        />
-        <SummaryCard
-          label="Active Bug Lists"
-          value={activeBugListsCount}
-          iconBg="from-blue-500 to-blue-600"
-          icon={<ListChecks className="h-5 w-5 text-white" />}
-          caption="Bug lists in your member projects"
-        />
+      <div className="space-y-6">
+        <div>
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3 px-1">
+            Review queue
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <SummaryCard
+              label="Pending Review"
+              value={pendingReviewCount}
+              iconBg="from-amber-500 to-amber-600"
+              icon={<AlertTriangle className="h-5 w-5 text-white" />}
+              highlight={pendingReviewCount > 0}
+              caption="Resolved bugs not yet verified"
+            />
+            <SummaryCard
+              label="Needs Recheck"
+              value={failedRecheckCount}
+              iconBg="from-rose-500 to-rose-600"
+              icon={<RotateCcw className="h-5 w-5 text-white" />}
+              highlight={failedRecheckCount > 0}
+              caption="Failed or resubmitted across your projects"
+            />
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3 px-1">
+            QA outcomes
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <SummaryCard
+              label="Passed"
+              value={passedCount}
+              iconBg="from-emerald-500 to-emerald-600"
+              icon={<CheckCircle2 className="h-5 w-5 text-white" />}
+              caption="Bugs you've approved and closed"
+            />
+            <SummaryCard
+              label="Failed"
+              value={failedCount}
+              iconBg="from-red-500 to-red-600"
+              icon={<XCircle className="h-5 w-5 text-white" />}
+              caption="Bugs you've marked as failing QA"
+            />
+            <SummaryCard
+              label="Active Bug Lists"
+              value={activeBugListsCount}
+              iconBg="from-blue-500 to-blue-600"
+              icon={<ListChecks className="h-5 w-5 text-white" />}
+              caption="Bug lists in your member projects"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Bug lists overview — per-list live status counts (client-derived). */}
@@ -420,7 +451,7 @@ export default function QaDashboardPage() {
             </div>
           ) : pendingReviewBugs.length === 0 ? (
             <div className="p-10 text-center">
-              <p className="text-sm text-slate-500">No bugs in this project are awaiting review right now. 🎉</p>
+              <p className="text-sm text-slate-500">No bugs in this project are awaiting review right now.</p>
               <p className="text-xs text-slate-400 mt-1">
                 When a developer marks a bug as resolved, it will show up here for verification.
               </p>
