@@ -776,6 +776,46 @@ Base path assumed: `/api/` (bug routes are not project-nested at the URL level e
 
 ---
 
+### 3.9 `GET /api/dashboard/qa/`
+
+| | |
+|---|---|
+| **Purpose** | Aggregate summary statistics specifically for a QA user's dashboard, detailing workload and QA outcome tracking. |
+| **View** | `QaDashboardSummaryView` (`APIView`) |
+| **Permission** | `IsAuthenticated`, `IsQA` |
+
+**Request flow:**
+1. Fetches all bugs visible to the QA user.
+2. Derives aggregate metrics dynamically from bug statuses without requiring extra database columns or migrations.
+
+**Database interaction:**
+- Filtered count queries on `bugs` table to derive state counts.
+- `SELECT` on `bug_lists` to fetch active bug lists.
+- `SELECT` on `bug_history` to retrieve recent activity for the QA user.
+
+**Response (200 OK):**
+```json
+{
+  "pending_review_count": 12,
+  "failed_recheck_count": 3,
+  "active_bug_lists_count": 5,
+  "passed_count": 15,
+  "failed_count": 8,
+  "recent_activity": [
+    {
+      "id": 42,
+      "bug_id": 105,
+      "action": "passed",
+      "timestamp": "2026-07-10T10:00:00Z"
+    }
+  ]
+}
+```
+
+**When this is used:** `QaDashboard.jsx` on load, populating the top-level metric cards and recent activity feed for the QA engineer's workflow.
+
+---
+
 ## 4. AI Integration App
 
 Base path: `/api/`
