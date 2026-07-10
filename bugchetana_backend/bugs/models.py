@@ -233,6 +233,7 @@ class QAResult(models.Model):
         ('fail', 'Fail'),
         ('blocked', 'Blocked'),
         ('reassign', 'Reassign'),
+        ('verified', 'Verified'),
     ]
 
     bug = models.ForeignKey(

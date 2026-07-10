@@ -136,7 +136,8 @@ class DeveloperBugHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Bug
         fields = (
-            'id', 'title', 'description', 'status', 'submitted_at', 'latest_qa_result',
+            'id', 'title', 'description', 'status', 'severity', 'predicted_severity',
+            'submitted_at', 'updated_at', 'latest_qa_result',
         )
 
     def get_latest_qa_result(self, obj):

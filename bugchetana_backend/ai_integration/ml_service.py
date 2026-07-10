@@ -19,7 +19,7 @@ try:
     _label_encoder = joblib.load(MODEL_DIR / "label_encoder.pkl")
 except Exception as e:
     # Don't crash the whole app if artifacts are missing/corrupted.
-    # predict_severity() will raise runtime error and individual request fail huncha, tara server chaldai basxa.
+    # predict_severity() will raise runtime error.txt and individual request fail huncha, tara server chaldai basxa.
     _load_error = e
 
 

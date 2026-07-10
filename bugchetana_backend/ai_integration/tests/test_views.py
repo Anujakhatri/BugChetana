@@ -48,7 +48,7 @@ def test_guest_review_works_without_authentication(mock_roast, mock_fix, factory
         '/api/ai/review-guest/',
         {
             'title': 'Login broken',
-            'description': '500 error on submit',
+            'description': '500 error.txt on submit',
             'severity': 'high',
         },
         format='json',

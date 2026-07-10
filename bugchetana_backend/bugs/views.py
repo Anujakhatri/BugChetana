@@ -3,6 +3,7 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.db.models import Count
 from django.utils import timezone
@@ -352,13 +353,13 @@ class AddBugToReleaseView(APIView):
 
         if bug.project_id != release.project_id:
             return Response(
-                {"error": "Bug does not belong to the same project as this release"},
+                {"error.txt": "Bug does not belong to the same project as this release"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if ReleaseBug.objects.filter(release=release, bug=bug).exists():
             return Response(
-                {"error": "Bug already in this release"},
+                {"error.txt": "Bug already in this release"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -517,15 +518,17 @@ class DeveloperDashboardSummaryView(APIView):
 
 
 class DeveloperSubmittedBugsView(generics.ListAPIView):
-    """Bugs created by the authenticated developer (Bug History tab)."""
+    """Bugs created by the authenticated user (used by Dev History tab and the
+    QA 'Recently reported' panel). Any authenticated project member can call
+    this — the queryset is always scoped to `created_by=self.request.user` so
+    no cross-user data leaks. The role gate was removed in Stage 3 of the QA
+    bug-lifecycle scope-down since QA can now report bugs.
+    """
     serializer_class = DeveloperBugHistorySerializer
     permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
         user = self.request.user
-        if get_role(user) != 'Developer':
-            return Bug.objects.none()
-
         qs = Bug.objects.filter(created_by=user).select_related('project')
         project_id = self.request.query_params.get('project_id')
         if project_id:
@@ -661,11 +664,14 @@ class BugVerifyView(APIView):
     """
     PATCH /api/bugs/<pk>/verify/
 
-    QA marks a resolved Bug as verified. Sets verified_by = request.user,
-    writes a BugHistory row (old_status == new_status == 'resolved'),
-    and notifies the assigned developer. Does NOT change bug.status and
-    does NOT create a QAResult row — verification is a separate audit
-    step from QA pass/fail.
+    QA marks a resolved Bug as verified. In a single transaction this view:
+    1. Sets verified_by = request.user
+    2. Creates a QAResult(result='verified') so the action appears in the
+       bug's QA activity feed / history.
+    3. Writes a BugHistory row (old_status == new_status == 'resolved').
+    4. Notifies the assigned developer.
+
+    Does NOT change bug.status.
     """
     permission_classes = (IsAuthenticated, CanSubmitQAResult)
 
@@ -680,16 +686,26 @@ class BugVerifyView(APIView):
                 {'status': f'Only resolved bugs can be verified (current: {bug.status}).'}
             )
 
-        bug.verified_by = request.user
-        bug._changed_by = request.user
-        bug.save(update_fields=['verified_by'])
+        notes = (request.data.get('notes') or '').strip() or None
 
-        BugHistory.objects.create(
-            bug=bug,
-            changed_by=request.user,
-            old_status=bug.status,
-            new_status=bug.status,  # informational; status does not change
-        )
+        with transaction.atomic():
+            bug.verified_by = request.user
+            bug._changed_by = request.user
+            bug.save(update_fields=['verified_by'])
+
+            QAResult.objects.create(
+                bug=bug,
+                qa=request.user,
+                result='verified',
+                notes=notes,
+            )
+
+            BugHistory.objects.create(
+                bug=bug,
+                changed_by=request.user,
+                old_status=bug.status,
+                new_status=bug.status,  # informational; status does not change
+            )
 
         if bug.assigned_to:
             create_notification(
