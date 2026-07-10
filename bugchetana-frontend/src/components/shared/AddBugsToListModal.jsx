@@ -54,6 +54,8 @@ export default function AddBugsToListModal({
   // with a clean slate (no stale selections, filters, or error). When the
   // caller passes `initialSelectedIds`, seed the selection with those bugs
   // — pre-selecting is what powers the "Add to list" one-click flow.
+  const initialSelectedKey = initialSelectedIds.join(",");
+
   useEffect(() => {
     if (open) {
       setSearch("");
@@ -63,7 +65,8 @@ export default function AddBugsToListModal({
       setError(null);
       setSubmitting(false);
     }
-  }, [open, initialSelectedIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialSelectedKey]);
 
   // Project bugs that are NOT already on this list. The "addable" pool.
   const addableBugs = useMemo(() => {

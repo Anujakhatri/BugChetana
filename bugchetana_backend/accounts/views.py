@@ -12,7 +12,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import (
     RegisterSerializer, LoginSerializer, LogoutSerializer, ProfileSerializer,
-    RoleUpdateSerializer, UserListSerializer, RoleSerializer,
+    ProfileUpdateSerializer, RoleUpdateSerializer, UserListSerializer, RoleSerializer,
 )
 from .models import UserSession, Role
 
@@ -108,6 +108,21 @@ class ProfileView(APIView):
     def get(self, request):
         serializer = ProfileSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        # partial=True so the client can send only name or only email
+        serializer = ProfileUpdateSerializer(
+            request.user, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        # Re-render through the read-only ProfileSerializer so the PATCH
+        # response shape matches the GET response exactly — the front end
+        # uses the same payload to refresh AuthContext.
+        return Response(
+            ProfileSerializer(request.user).data,
+            status=status.HTTP_200_OK,
+        )
 
 #Role update by release manager only
 class RoleUpdateView(APIView):

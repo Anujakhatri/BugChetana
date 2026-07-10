@@ -53,10 +53,20 @@ class BugListCreateView(generics.ListCreateAPIView):
         return [IsAuthenticated(), HasProjectAccess()]
 
     def get_queryset(self):
-        return visible_bugs_for(
+        qs = visible_bugs_for(
             self.request.user,
             project_id=self.kwargs.get('project_id'),
         )
+        # Optional additive filter: ?status=<choice>. Validated against the
+        # Bug.STATUS_CHOICES whitelist so untrusted input never reaches the
+        # ORM. Missing/empty/invalid values leave the queryset unchanged,
+        # preserving the original behavior of this endpoint.
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            valid_statuses = {key for key, _ in Bug.STATUS_CHOICES}
+            if status_param in valid_statuses:
+                qs = qs.filter(status=status_param)
+        return qs
 
     def perform_create(self, serializer):
         title = serializer.validated_data.get('title', '')

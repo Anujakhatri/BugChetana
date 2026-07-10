@@ -228,7 +228,55 @@ Base path: `/api/auth/`
 
 ---
 
-### 1.6 `GET /api/auth/users/`
+### 1.6 `PATCH /api/auth/profile/`
+
+| | |
+|---|---|
+| **Purpose** | Let the currently authenticated user update their own `name` and `email`. Username, role, and status are intentionally **not** editable here — those are admin-managed. |
+| **HTTP Method** | `PATCH` — partial update; the client can send only `name`, only `email`, or both. |
+| **View** | `ProfileView.patch` (same `APIView` as `GET /api/auth/profile/`) |
+| **Serializer** | `ProfileUpdateSerializer` (request body) → `ProfileSerializer` (response body) |
+| **Model(s)** | `User` (read + write of the two fields above) |
+| **Permission** | `IsAuthenticated` — any logged-in user can update their own profile. |
+
+**Request flow:**
+1. `ProfileUpdateSerializer` is initialized with `(request.user, data=request.data, partial=True)`. The `partial=True` flag means missing fields are left alone instead of being treated as required.
+2. `validate_email()` runs `django_validate_email()` for format, then `User.objects.filter(email__iexact=value).exclude(pk=self.instance.pk).exists()` to enforce case-insensitive uniqueness *excluding the current user* — so a user can save without changing their email without 400-ing on their own existing row.
+3. `.save()` updates the `User` row in place.
+4. The view re-renders the response through the read-only `ProfileSerializer` so the PATCH response is byte-for-byte the same shape as the GET response — `AuthContext.setUser` re-uses the response object to refresh the cached user, so any shape drift would silently break the Navbar pill update.
+
+**Request body (any subset):**
+```json
+{ "name": "Capstone Kc", "email": "capstone@example.com" }
+```
+
+**Response (200 OK):** same shape as `GET /api/auth/profile/`:
+```json
+{
+  "id": 4,
+  "username": "test123",
+  "email": "capstone@example.com",
+  "name": "Capstone Kc",
+  "role": "Developer",
+  "created_at": "2026-06-28T09:15:00Z"
+}
+```
+
+**Error example (email already taken, 400):**
+```json
+{
+  "email": ["This email is already registered. Please use a different email address."]
+}
+```
+
+**Database interaction:**
+- `UPDATE users SET name=?, email=? WHERE id = <request.user.id>` (single row, never touches `username` / `role` / `status` / `created_at`).
+
+**When this is used:** The "Edit Profile" button in the Navbar's `ProfileModal` navigates to `/<role>/profile`, where `RoleProfilePage.jsx` renders an inline edit form. On save, it calls `updateProfile()` and passes the response back to `AuthContext.setUser`, which refreshes the Navbar pill and the profile header in one render.
+
+---
+
+### 1.7 `GET /api/auth/users/`
 
 | | |
 |---|---|
@@ -274,7 +322,7 @@ Base path: `/api/auth/`
 
 ---
 
-### 1.7 `PATCH /api/auth/users/<int:pk>/role/`
+### 1.8 `PATCH /api/auth/users/<int:pk>/role/`
 
 | | |
 |---|---|
@@ -318,7 +366,7 @@ Base path: `/api/auth/`
 
 ---
 
-### 1.8 `GET /api/auth/roles/`
+### 1.9 `GET /api/auth/roles/`
 
 | | |
 |---|---|

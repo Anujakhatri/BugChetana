@@ -252,14 +252,6 @@ export default function DeveloperDashboardPage() {
     return ["all", ...Array.from(set).sort()];
   }, [assignedBugs]);
 
-  // Recent activity comes from the new dashboard endpoint. Cross-reference bug_id
-  // against the loaded bug list to render titles; fall back to "Bug #<id>".
-  const bugById = useMemo(() => {
-    const m = new Map();
-    assignedBugs.forEach((b) => m.set(b.id, b));
-    return m;
-  }, [assignedBugs]);
-
   // "Resolved this week" — recent_activity only carries {id,type,bug_id,project_id,timestamp},
   // no old_status/new_status, so it cannot be derived precisely. The spec explicitly
   // allows the fallback: use assigned_by_status.resolved as an all-time "Resolved" card.
@@ -268,7 +260,6 @@ export default function DeveloperDashboardPage() {
   const resolvedTotal = assignedByStatus.resolved || 0;
   const openAssignedTotal = (assignedByStatus.open || 0) + (assignedByStatus.in_progress || 0);
   const needsAttentionCount = devDashboard?.needs_attention_count ?? 0;
-  const recentActivity = devDashboard?.recent_activity || [];
 
   if (loading && devDashboardLoading) {
     return <div className="p-8 text-center text-slate-500">Loading your dashboard...</div>;
@@ -635,49 +626,7 @@ export default function DeveloperDashboardPage() {
         </div>
       </div>
 
-      {/* Recent activity feed — from the new dashboard endpoint. */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-2">
-          <Activity className="h-5 w-5 text-blue-600" />
-          <h2 className="text-base font-semibold text-slate-800">Recent Activity</h2>
-        </div>
-        {recentActivity.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">No recent activity yet.</div>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {recentActivity.map((item) => {
-              const bug = bugById.get(item.bug_id);
-              const bugLabel = bug ? bug.title : `Bug #${item.bug_id}`;
-              const isQa = item.type === "qa_result";
-              return (
-                <button
-                  key={`${item.type}-${item.id}`}
-                  type="button"
-                  onClick={() => navigate(`/bugs/${item.bug_id}`)}
-                  className="w-full text-left px-6 py-3.5 hover:bg-slate-50 transition-colors flex items-center gap-3"
-                >
-                  <span
-                    className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${
-                      isQa
-                        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                        : "bg-blue-50 text-blue-700 border-blue-200"
-                    }`}
-                  >
-                    {isQa ? "QA" : "History"}
-                  </span>
-                  <span className="text-sm text-slate-700 flex-1 min-w-0 truncate">
-                    {isQa ? "QA result" : "Status change"} ·{" "}
-                    <span className="font-medium text-slate-900">{bugLabel}</span>
-                  </span>
-                  <span className="text-xs text-slate-400 shrink-0">
-                    {timeAgo(item.timestamp)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {/* Recent activity feed — moved to /developer/history. */}
     </div>
   );
 }

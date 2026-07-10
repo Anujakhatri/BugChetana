@@ -3,10 +3,15 @@ import {
   FolderPlus,
   Rocket,
   RotateCcw,
+  Activity,
 } from "lucide-react";
 import api from "@/api/axiosInstance";
+import { getMySubmittedBugs } from "@/api/bugs";
+import { useDashboardSummary } from "@/hooks/useDashboardSummary";
+import { StatusBadge } from "@/components/shared/DashboardBadges";
 
 export default function RmHistoryPage() {
+  const { projectId } = useDashboardSummary();
   const [historyData, setHistoryData] = useState({
     total_projects_created: 0,
     total_projects_released: 0,
@@ -15,6 +20,12 @@ export default function RmHistoryPage() {
   });
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // Submission log: bugs this RM user has submitted. (RMs can submit bugs via
+  // /release-manager/submit-bug; the existing /bugs/mine/ endpoint scopes by
+  // created_by=self, so it works for any role that has reported bugs.)
+  const [submissionBugs, setSubmissionBugs] = useState([]);
+  const [submissionLoading, setSubmissionLoading] = useState(false);
+
   useEffect(() => {
     setHistoryLoading(true);
     api.get("/release-manager/history/")
@@ -22,6 +33,14 @@ export default function RmHistoryPage() {
       .catch(console.error)
       .finally(() => setHistoryLoading(false));
   }, []);
+
+  useEffect(() => {
+    setSubmissionLoading(true);
+    getMySubmittedBugs(projectId)
+      .then(setSubmissionBugs)
+      .catch(console.error)
+      .finally(() => setSubmissionLoading(false));
+  }, [projectId]);
 
   return (
     <div className="space-y-6">
@@ -62,9 +81,42 @@ export default function RmHistoryPage() {
         </div>
       </div>
 
+      {/* Submission Log — bugs this RM user has submitted. */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100">
-          <h2 className="text-base font-semibold text-slate-800">Activity Log</h2>
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-800">Submission Log</h2>
+        </div>
+
+        {submissionLoading ? (
+          <div className="p-8 text-center text-slate-500">Loading history...</div>
+        ) : submissionBugs.length === 0 ? (
+          <div className="p-8 text-center text-slate-500">No bugs submitted yet.</div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {submissionBugs.map((bug) => (
+              <div key={bug.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">{bug.title}</h3>
+                  <p className="text-sm text-slate-600 mt-1 truncate max-w-xl">{bug.description}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <StatusBadge status={bug.status} />
+                  <span className="text-xs text-slate-400">
+                    {new Date(bug.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recent Activity — RM's own project / release / reassignment events
+          (existing /release-manager/history/ aggregate). */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-2">
+          <Activity className="h-5 w-5 text-blue-600" />
+          <h2 className="text-base font-semibold text-slate-800">Recent Activity</h2>
         </div>
         {historyLoading ? (
           <p className="p-6 text-sm text-slate-400 text-center">Loading history...</p>

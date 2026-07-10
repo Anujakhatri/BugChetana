@@ -181,6 +181,27 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'email', 'name', 'role', 'created_at')
         read_only_fields = fields  # read only, cannot edit
 
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    # Limited subset of the user's own profile they can edit themselves
+    # (name + email). Username, role, and status are admin-managed and are
+    # silently dropped from the request body by restricting `fields`.
+    class Meta:
+        model = User
+        fields = ('name', 'email')
+
+    def validate_email(self, value):
+        django_validate_email(value)
+        qs = User.objects.filter(email__iexact=value)
+        if self.instance is not None:
+            # Don't 400 on saving without changing your own email
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                "This email is already registered. Please use a different email address."
+            )
+        return value
+
 # Role Update garcha only by Release Manager
 class RoleUpdateSerializer(serializers.Serializer):
     role_id = serializers.IntegerField()

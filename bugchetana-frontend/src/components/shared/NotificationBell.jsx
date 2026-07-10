@@ -2,12 +2,20 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { getNotifications, markNotificationRead, markAllNotificationsRead } from '@/api/notifications';
+import { useAuth } from '@/context/AuthContext';
 
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  // Gate the bell on auth readiness: don't fire /notifications/ until
+  // AuthContext has confirmed a logged-in user. The axios interceptor
+  // attaches the token from sessionStorage, so any request fired before
+  // login completes — or after a forced logout that hasn't yet cleared
+  // the bell — will hit 401. Wait for a real user + non-loading state.
+  const { user, loading: authLoading } = useAuth();
+  const authReady = !authLoading && !!user;
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
@@ -24,14 +32,15 @@ export default function NotificationBell() {
   }, []);
 
   useEffect(() => {
+    if (!authReady) return;
     loadNotifications();
     const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
-  }, [loadNotifications]);
+  }, [loadNotifications, authReady]);
 
   const handleOpen = () => {
     setOpen((prev) => !prev);
-    if (!open) loadNotifications();
+    if (!open && authReady) loadNotifications();
   };
 
   const handleClick = async (notification) => {

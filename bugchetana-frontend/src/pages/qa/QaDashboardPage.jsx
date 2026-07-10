@@ -251,6 +251,7 @@ export default function QaDashboardPage() {
               iconBg="from-emerald-500 to-emerald-600"
               icon={<CheckCircle2 className="h-5 w-5 text-white" />}
               caption="Bugs you've approved and closed"
+              to="/qa/bug-list?status=closed"
             />
             <SummaryCard
               label="Failed"
@@ -258,6 +259,7 @@ export default function QaDashboardPage() {
               iconBg="from-red-500 to-red-600"
               icon={<AlertTriangle className="h-5 w-5 text-white" />}
               caption="Bugs you've marked as failing QA"
+              to="/qa/bug-list?status=failed"
             />
             <SummaryCard
               label="Active Bug Lists"
@@ -265,6 +267,7 @@ export default function QaDashboardPage() {
               iconBg="from-blue-500 to-blue-600"
               icon={<ListChecks className="h-5 w-5 text-white" />}
               caption="Bug lists in your member projects"
+              to="/qa/bug-list"
             />
           </div>
         </div>
@@ -363,11 +366,26 @@ export default function QaDashboardPage() {
   );
 }
 
-function SummaryCard({ label, value, iconBg, icon, highlight, caption }) {
+function SummaryCard({ label, value, iconBg, icon, highlight, caption, to }) {
+  // When a `to` prop is provided the card is rendered as a clickable button
+  // with React Router navigation, a pointer cursor, and a subtle hover lift
+  // (existing cards without `to` render unchanged).
+  const navigate = useNavigate();
+  const isClickable = Boolean(to);
+  const handleClick = () => {
+    if (to) navigate(to);
+  };
   return (
-    <div
-      className={`bg-white rounded-2xl border shadow-sm p-5 flex items-center justify-between ${
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={!isClickable}
+      className={`text-left w-full bg-white rounded-2xl border shadow-sm p-5 flex items-center justify-between transition-all ${
         highlight ? "border-amber-200" : "border-slate-100"
+      } ${
+        isClickable
+          ? "cursor-pointer hover:shadow-md hover:border-slate-200 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          : "cursor-default"
       }`}
     >
       <div className="min-w-0">
@@ -382,6 +400,6 @@ function SummaryCard({ label, value, iconBg, icon, highlight, caption }) {
       <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${iconBg} flex items-center justify-center shadow-md shrink-0`}>
         {icon}
       </div>
-    </div>
+    </button>
   );
 }

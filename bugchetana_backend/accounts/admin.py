@@ -3,27 +3,25 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from accounts.models import User, UserSession, Role
 
-
-# Register your models here.
 @admin.register(Role)
 class RoleAdmin(admin.ModelAdmin):
-    list_display = ('id','name', 'description',)
+    list_display = ('id', 'name', 'description',)
     search_fields = ('name',)
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('id','username', 'email', 'name','role','status', 'is_active')
-    list_display_links = ('id','username')
-    list_filter = ('role','status', 'is_active',)
+    list_display = ('id', 'username', 'email', 'name', 'role', 'status', 'is_active')
+    list_display_links = ('id', 'username')
+    list_filter = ('role', 'status', 'is_active',)
     search_fields = ('username', 'email', 'name',)
 
     assert BaseUserAdmin.fieldsets is not None
     fieldsets = tuple(BaseUserAdmin.fieldsets) + (
-        ('Role Info', {'fields': ('role','name')}),
+        ('Role Info', {'fields': ('role', 'name')}),
     )
-    assert BaseUserAdmin.fieldsets is not None
+    assert BaseUserAdmin.add_fieldsets is not None
     add_fieldsets = tuple(BaseUserAdmin.add_fieldsets) + (
-        ('Role Info', {'fields': ('role','name')}),
+        ('Role Info', {'fields': ('role', 'name')}),
     )
 
 @admin.register(UserSession)
