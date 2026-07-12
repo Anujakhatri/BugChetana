@@ -1,0 +1,18 @@
+[
+  {
+    "model": "accounts.role",
+    "fields": {"name": "Developer", "description": "Submit bug and check status"}
+  },
+  {
+    "model": "accounts.role",
+    "fields": {"name": "QA", "description": "check developer code and review"}
+  },
+  {
+    "model": "accounts.role",
+    "fields": {"name": "Release Manager", "description": "who track all the project reports and finalize the product."}
+  },
+  {
+    "model": "accounts.role",
+    "fields": {"name": "admin", "description": "controls everythings"}
+  }
+]

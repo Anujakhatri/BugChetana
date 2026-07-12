@@ -53,10 +53,20 @@ class BugListCreateView(generics.ListCreateAPIView):
         return [IsAuthenticated(), HasProjectAccess()]
 
     def get_queryset(self):
-        return visible_bugs_for(
+        qs = visible_bugs_for(
             self.request.user,
             project_id=self.kwargs.get('project_id'),
         )
+        # Optional additive filter: ?status=<choice>. Validated against the
+        # Bug.STATUS_CHOICES whitelist so untrusted input never reaches the
+        # ORM. Missing/empty/invalid values leave the queryset unchanged,
+        # preserving the original behavior of this endpoint.
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            valid_statuses = {key for key, _ in Bug.STATUS_CHOICES}
+            if status_param in valid_statuses:
+                qs = qs.filter(status=status_param)
+        return qs
 
     def perform_create(self, serializer):
         title = serializer.validated_data.get('title', '')
@@ -142,6 +152,7 @@ class BugDetailView(generics.RetrieveUpdateDestroyAPIView):
                 changed_by=self.request.user,
                 old_status=old_status,
                 new_status=new_status,
+                notes=notes,
             )
 
             qa_members = bug.project.members.filter(user__role__name='QA')
@@ -166,10 +177,27 @@ class BugCommentListCreateView(generics.ListCreateAPIView):
         return BugComment.objects.filter(bug_id=self.kwargs['bug_id'])
 
     def perform_create(self, serializer):
-        serializer.save(
+        comment = serializer.save(
             user=self.request.user,
             bug_id=self.kwargs['bug_id'],
         )
+        # Mirror BugDetailView.perform_update: when a Developer adds a
+        # comment on a bug, notify every QA member of the same project so
+        # they can pick it up. QA/RM comments don't fan out — they already
+        # see the bug via visible_bugs_for and would only spam each other.
+        if get_role(self.request.user) == 'Developer':
+            bug = comment.bug
+            qa_members = bug.project.members.filter(user__role__name='QA')
+            for member in qa_members:
+                create_notification(
+                    recipient=member.user,
+                    message=(
+                        f'Developer {self.request.user.name} commented on Bug '
+                        f'"{bug.title}" (#{bug.id}): {comment.comment_text}'
+                    ),
+                    related_bug=bug,
+                    related_project=bug.project,
+                )
 
 
 # ─── Bug History View ─────────────────────────────────────────
@@ -255,6 +283,7 @@ class QAResultCreateView(generics.CreateAPIView):
                 changed_by=self.request.user,
                 old_status=prev_status,
                 new_status=bug.status,
+                notes = qa_result.notes,
             )
         bug.save()
 
@@ -288,6 +317,19 @@ class BugAssignView(APIView):
             related_bug=bug,
         )
 
+        # Record the assignment in the bug's history timeline so bare PATCHes
+        # (with no QA result) are still visible alongside status changes.
+        # Mirrors the BugVerifyView convention (old_status == new_status when
+        # the action does not move the status).
+        if previous_assignee != bug.assigned_to_id:
+            BugHistory.objects.create(
+                bug=bug,
+                changed_by=request.user,
+                old_status=bug.status,
+                new_status=bug.status,
+                notes=notes or None,
+            )
+
         if record_reassign:
             QAResult.objects.create(
                 bug=bug,
@@ -314,15 +356,30 @@ class BugResubmitView(APIView):
         serializer = BugResubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        notes = serializer.validated_data['notes']
         if 'title' in serializer.validated_data:
             bug.title = serializer.validated_data['title']
         if 'description' in serializer.validated_data:
             bug.description = serializer.validated_data['description']
 
+        old_status = bug.status
         bug.status = 'resubmitted'
         bug.qa_comment = None
         bug._changed_by = request.user
         bug.save()
+
+        # Record the resubmit in the bug's audit trail, mirroring the Mark
+        # Resolved flow in BugDetailView.perform_update: a BugComment for the
+        # comment list and a BugHistory row carrying the same notes so the
+        # History timeline surfaces the resubmit alongside status changes.
+        BugComment.objects.create(bug=bug, user=request.user, comment_text=notes)
+        BugHistory.objects.create(
+            bug=bug,
+            changed_by=request.user,
+            old_status=old_status,
+            new_status='resubmitted',
+            notes=notes,
+        )
 
         return Response(BugSerializer(bug).data, status=status.HTTP_200_OK)
 
@@ -668,6 +725,48 @@ class BugListItemAddView(APIView):
         )
 
 
+class BugListItemDeleteView(APIView):
+    """
+    DELETE /api/projects/<project_id>/bug-lists/<bug_list_id>/items/<bug_id>/
+
+    Remove a single Bug from a BugList by deleting the BugListItem
+    association row. Does NOT delete the Bug itself. Mirrors
+    BugListItemAddView's permission classes (IsAuthenticated +
+    CanCreateBugList) so only QA members of the project can manage
+    list membership, matching the existing add endpoint.
+    """
+    permission_classes = (IsAuthenticated, CanCreateBugList)
+
+    def delete(self, request, project_id, bug_list_id, bug_id):
+        bug_list = get_object_or_404(
+            BugList.objects.select_related('project'),
+            pk=bug_list_id,
+            project_id=project_id,
+        )
+
+        try:
+            item = BugListItem.objects.get(bug_list=bug_list, bug_id=bug_id)
+        except BugListItem.DoesNotExist:
+            return Response(
+                {'error.txt': 'Bug is not in this list.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        item.delete()
+
+        return Response(
+            {
+                'message': 'Bug removed from list.',
+                'bug_list_id': bug_list.id,
+                'bug_ids': list(
+                    BugListItem.objects.filter(bug_list=bug_list)
+                    .values_list('bug_id', flat=True)
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class BugVerifyView(APIView):
     """
     PATCH /api/bugs/<pk>/verify/
@@ -712,7 +811,8 @@ class BugVerifyView(APIView):
                 bug=bug,
                 changed_by=request.user,
                 old_status=bug.status,
-                new_status=bug.status,  # informational; status does not change
+                new_status=bug.status,
+                notes=notes,
             )
 
         if bug.assigned_to:

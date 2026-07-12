@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Plus, Trash2 } from 'lucide-react';
+import { Users, Trash2 } from 'lucide-react';
 import { getProjectMembers, addProjectMember, removeProjectMember } from '@/api/projects';
 import { getUsers } from '@/api/users';
+import MemberSearchAdd from '@/components/shared/MemberSearchAdd';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProjectDevelopersManager({ projectId }) {
+  const { user } = useAuth();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Candidate pool is fetched with a server-side role filter — the QA flow
+  // can only ever add Developer-role users, regardless of what they type in
+  // the search box. (See UserListView in accounts/views.py — `?role=` filter.)
   const [devs, setDevs] = useState([]);
-  const [search, setSearch] = useState('');
-  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -23,16 +27,12 @@ export default function ProjectDevelopersManager({ projectId }) {
   }, [projectId]);
 
   const handleAdd = async (userId) => {
-    setAdding(true);
     try {
       const res = await addProjectMember(projectId, userId);
       setMembers((prev) => [...prev, res.member || res]);
-      setSearch('');
     } catch (err) {
       console.error(err);
       alert('Failed to add developer.');
-    } finally {
-      setAdding(false);
     }
   };
 
@@ -45,10 +45,6 @@ export default function ProjectDevelopersManager({ projectId }) {
       alert('Failed to remove developer.');
     }
   };
-
-  const existingIds = new Set(members.map((m) => m.user));
-
-  const candidates = devs.filter((d) => !existingIds.has(d.id) && (!search || d.name.toLowerCase().includes(search.toLowerCase()) || d.email.toLowerCase().includes(search.toLowerCase())));
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -63,32 +59,40 @@ export default function ProjectDevelopersManager({ projectId }) {
             {members.length === 0 ? (
               <p className="text-sm text-slate-400">No developers assigned to this project.</p>
             ) : (
-              members.map((m) => (
-                <div key={m.user} className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-slate-700">{m.user_name || m.name || m.email}</div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleRemove(m.user)} className="text-rose-600 hover:text-rose-700 text-sm font-medium flex items-center gap-2">
-                      <Trash2 className="h-4 w-4" /> Remove
-                    </button>
+              members.map((m) => {
+                // The backend already filters /api/projects/<id>/members/ to
+                // Developer-role users, but we also guard here so the
+                // logged-in user never sees a Remove button on their own
+                // row. The backend independently rejects self-removal in
+                // RemoveProjectMemberView — this is purely a UX layer.
+                const isSelf = user != null && String(m.user) === String(user.id);
+                return (
+                  <div key={m.user} className="flex items-center justify-between gap-3">
+                    <div className="text-sm text-slate-700">{m.user_name || m.name || m.email}</div>
+                    <div className="flex items-center gap-2">
+                      {isSelf ? (
+                        <span
+                          className="text-xs text-slate-400 italic"
+                          title="You can't remove yourself from this project."
+                        >
+                          (you)
+                        </span>
+                      ) : (
+                        <button onClick={() => handleRemove(m.user)} className="text-rose-600 hover:text-rose-700 text-sm font-medium flex items-center gap-2">
+                          <Trash2 className="h-4 w-4" /> Remove
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
 
-            <div className="pt-3">
-              <label className="block text-xs font-medium text-slate-600 mb-1">Add developer</label>
-              <div className="flex gap-2">
-                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search developers by name or email" className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <div className="w-40">
-                  <select value="" onChange={(e) => handleAdd(Number(e.target.value))} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
-                    <option value="">Select developer</option>
-                    {candidates.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
+            <MemberSearchAdd
+              users={devs}
+              existingMemberIds={members.map((m) => m.user)}
+              onAdd={handleAdd}
+            />
           </div>
         )}
       </div>

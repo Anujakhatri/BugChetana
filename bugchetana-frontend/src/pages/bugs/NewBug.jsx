@@ -68,7 +68,7 @@ export default function NewBug() {
 
     try {
       const bug = await createBug(currentProject.id, formData);
-      console.log('CREATED BUG RESPONSE:', bug)
+      // console.log('CREATED BUG RESPONSE:', bug)
 
       setCreatedBug(bug);
     } catch (err) {

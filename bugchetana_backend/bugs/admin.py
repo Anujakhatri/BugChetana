@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Bug, BugComment, BugHistory, Release, ReleaseBug, QAResult
+from .models import Bug, BugComment, BugHistory, Release, ReleaseBug, QAResult, BugList, BugListItem
 
 @admin.register(Bug)
 class BugAdmin(admin.ModelAdmin):
@@ -31,3 +31,15 @@ class ReleaseBugAdmin(admin.ModelAdmin):
 class QAResultAdmin(admin.ModelAdmin):
     list_display = ['id', 'bug', 'qa', 'result', 'tested_at']
     raw_id_fields = ['bug', 'qa']
+
+@admin.register(BugList)
+class BugListAdmin(admin.ModelAdmin):
+    list_display = ['id', 'name', 'project', 'created_by', 'created_at']
+    list_filter = ['project']
+    search_fields = ['name']
+    raw_id_fields = ['project', 'created_by']
+
+@admin.register(BugListItem)
+class BugListItemAdmin(admin.ModelAdmin):
+    list_display = ['id', 'bug_list', 'bug']
+    raw_id_fields = ['bug_list', 'bug']

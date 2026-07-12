@@ -6,6 +6,7 @@ import {
 } from '@/api/projects';
 import { getUsers } from '@/api/users';
 import PageContainer from '@/components/layout/PageContainer';
+import MemberSearchAdd from '@/components/shared/MemberSearchAdd';
 import { Plus, Trash2, Users, Loader2, X, Pencil } from 'lucide-react';
 
 export default function ProjectManagement({ embedded = false }) {
@@ -31,11 +32,8 @@ export default function ProjectManagement({ embedded = false }) {
   const [expandedId, setExpandedId] = useState(null);
   const [members, setMembers] = useState([]);
   const [membersLoading, setMembersLoading] = useState(false);
-  const [newMemberUserId, setNewMemberUserId] = useState('');
   const [memberError, setMemberError] = useState(null);
   const [allUsers, setAllUsers] = useState([]);
-  const [memberSearchQuery, setMemberSearchQuery] = useState('');
-  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -115,9 +113,6 @@ export default function ProjectManagement({ embedded = false }) {
     setExpandedId(projectId);
     setMembersLoading(true);
     setMemberError(null);
-    setNewMemberUserId('');
-    setMemberSearchQuery('');
-    setIsComboboxOpen(false);
     try {
       const [data, devUsers, qaUsers] = await Promise.all([
           getProjectMembers(projectId),
@@ -135,14 +130,12 @@ export default function ProjectManagement({ embedded = false }) {
     }
   };
 
-  const handleAddMember = async (projectId) => {
-    if (!newMemberUserId.trim()) return;
+  const handleAddMember = async (projectId, userId) => {
+    if (!userId) return;
     setMemberError(null);
     try {
-      const newMember = await addProjectMember(projectId, newMemberUserId.trim());
+      const newMember = await addProjectMember(projectId, String(userId));
       setMembers([...members, newMember.member || newMember]);
-      setNewMemberUserId('');
-      setMemberSearchQuery('');
       setProjects(projects.map(p =>
         p.id === projectId ? { ...p, member_count: p.member_count + 1 } : p
       ));
@@ -315,69 +308,13 @@ export default function ProjectManagement({ embedded = false }) {
                           </div>
                         ))}
 
-                        {canManage && (() => {
-                          const memberUserIds = new Set(members.map(m => m.user));
-                          const availableUsers = allUsers
-                            .filter(u => !memberUserIds.has(u.id))
-                            .filter(u => {
-                              if (!memberSearchQuery) return true;
-                              const q = memberSearchQuery.toLowerCase();
-                              return (
-                                u.name?.toLowerCase().includes(q) ||
-                                u.email?.toLowerCase().includes(q)
-                              );
-                            });
-
-                          return (
-                            <div className="space-y-2 pt-2">
-                              <label className="block text-xs font-medium text-gray-500">Add member</label>
-                              <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                  <input
-                                    value={memberSearchQuery}
-                                    onChange={(e) => {
-                                      setMemberSearchQuery(e.target.value);
-                                      setNewMemberUserId('');
-                                      setIsComboboxOpen(true);
-                                    }}
-                                    onFocus={() => setIsComboboxOpen(true)}
-                                    onBlur={() => setTimeout(() => setIsComboboxOpen(false), 200)}
-                                    placeholder="Search by name or email…"
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-                                  />
-                                  {isComboboxOpen && availableUsers.length > 0 && (
-                                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                      {availableUsers.map((u) => (
-                                        <button
-                                          key={u.id}
-                                          onClick={() => {
-                                            setNewMemberUserId(String(u.id));
-                                            setMemberSearchQuery(`${u.name} (${u.email})`);
-                                            setIsComboboxOpen(false);
-                                          }}
-                                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
-                                        >
-                                          {u.name} <span className="text-gray-400">({u.email})</span>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {isComboboxOpen && availableUsers.length === 0 && (
-                                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-sm text-gray-500">
-                                      {memberSearchQuery ? 'No matching users found.' : 'All users are already members.'}
-                                    </div>
-                                  )}
-                                </div>
-                                <button
-                                  onClick={() => handleAddMember(project.id)}
-                                  className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-sm font-medium whitespace-nowrap"
-                                >
-                                  Add
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })()}
+                        {canManage && (
+                          <MemberSearchAdd
+                            users={allUsers}
+                            existingMemberIds={members.map((m) => m.user)}
+                            onAdd={(userId) => handleAddMember(project.id, userId)}
+                          />
+                        )}
                       </>
                     )}
                   </div>

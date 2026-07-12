@@ -25,7 +25,7 @@ class BugHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = BugHistory
         fields = ('id', 'bug', 'changed_by', 'changed_by_name',
-                  'old_status', 'new_status', 'changed_at')
+                  'old_status', 'new_status','notes', 'changed_at')
         read_only_fields = ('changed_by', 'changed_by_name','changed_at')
 
 
@@ -77,15 +77,32 @@ class BugCreateSerializer(serializers.ModelSerializer):
 class ReleaseSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.name', read_only=True)
     bugs = serializers.SerializerMethodField()
+    # Same release_bugs rows as `bugs`, but with title included so the
+    # Release Manager dashboard can render "#<id> - <title>" under each
+    # release without a second round-trip. The original `bugs` field is
+    # kept as a flat list of ids because the RM dashboard's dropdown
+    # filter uses it via `new Set(release.bugs)`; do not collapse these.
+    bug_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Release
         fields = ('id', 'version', 'title', 'project',
-                  'created_by', 'created_by_name', 'bugs', 'released_at')
+                  'created_by', 'created_by_name', 'bugs', 'bug_details', 'released_at')
         read_only_fields = ('project', 'created_by', 'released_at')
 
     def get_bugs(self, obj):
         return obj.release_bugs.values_list('bug_id', flat=True)
+
+    def get_bug_details(self, obj):
+        # Single SQL join via the existing release_bugs M2M table; ordered
+        # by the join row id so the display order is stable. The frontend
+        # only reads `id` and `title` from each entry.
+        return [
+            {'id': bug_id, 'title': title}
+            for bug_id, title in obj.release_bugs.order_by('id').values_list(
+                'bug_id', 'bug__title'
+            )
+        ]
 
 class QAResultSerializer(serializers.ModelSerializer):
     qa_name = serializers.CharField(source='qa.name', read_only=True)
@@ -122,13 +139,21 @@ class BugAssignSerializer(serializers.Serializer):
 
 
 class BugResubmitSerializer(serializers.Serializer):
-    title = serializers.CharField(max_length=255, required=False)
-    description = serializers.CharField(required=False)
+    # Notes are required on resubmit — a free-text "what was fixed" entry that
+    # lands in BugHistory.notes (and as a BugComment) the same way Mark Resolved
+    # records its resolve note. Mirrors the pattern in BugDetailView.perform_update
+    # (which requires `notes` when a Developer moves status to 'resolved').
+    notes = serializers.CharField(required=True, allow_blank=False)
+    # title / description remain optional: a developer may still want to amend
+    # them alongside the resubmit, but they are not required.
+    title = serializers.CharField(max_length=255, required=False, allow_blank=False)
+    description = serializers.CharField(required=False, allow_blank=False)
 
-    def validate(self, data):
-        if not data.get('title') and not data.get('description'):
-            raise serializers.ValidationError('Provide an updated title or description to resubmit.')
-        return data
+    def validate_notes(self, value):
+        value = (value or '').strip()
+        if not value:
+            raise serializers.ValidationError('A comment is required when resubmitting a bug.')
+        return value
 
 
 class DeveloperBugHistorySerializer(serializers.ModelSerializer):

@@ -10,6 +10,7 @@ import {
   Loader2,
   ShieldCheck,
   XCircle,
+  Trash2,
 } from "lucide-react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
@@ -18,6 +19,7 @@ import {
   assignBug,
   verifyBug,
   listUsers,
+  removeBugFromList,
 } from "@/api/bugs";
 import { SeverityBadge, StatusBadge, timeAgo } from "@/components/shared/DashboardBadges";
 import AddBugsToListModal from "@/components/shared/AddBugsToListModal";
@@ -115,6 +117,7 @@ export default function QaBugListDetailPage() {
   // Per-bug in-flight states so the UI can show spinners on the right row only.
   const [assigningId, setAssigningId] = useState(null);
   const [verifyingId, setVerifyingId] = useState(null);
+  const [removingId, setRemovingId] = useState(null);
 
   const { toasts, push: pushToast } = useToasts();
 
@@ -221,6 +224,50 @@ export default function QaBugListDetailPage() {
   const handleAddBugsSuccess = ({ added }) => {
     pushToast("success", `Added ${added} bug${added === 1 ? "" : "s"} to the list.`);
     reloadBugList();
+  };
+
+  // Remove a bug from the list (does not delete the bug itself). Confirms
+  // first; on success optimistically drops the row + updates bug_ids so the
+  // list view stays in sync without a full refetch, then reconciles with the
+  // server's returned bug_ids (in case other state changed). On error,
+  // refetches the list to roll back to the authoritative state.
+  const handleRemove = async (bugId) => {
+    if (removingId) return; // single-flight
+    if (
+      !window.confirm(
+        "Remove this bug from the list? The bug itself will not be deleted."
+      )
+    ) {
+      return;
+    }
+    setRemovingId(bugId);
+    // Optimistic update: drop the row + prune bug_ids locally.
+    const prevBugList = bugList;
+    setBugList((bl) =>
+      bl ? { ...bl, bug_ids: (bl.bug_ids || []).filter((id) => id !== bugId) } : bl
+    );
+    try {
+      const res = await removeBugFromList(projectId, bugList.id, bugId);
+      // Reconcile with the server's authoritative bug_ids (also captures any
+      // concurrent changes).
+      if (res && Array.isArray(res.bug_ids)) {
+        setBugList((bl) => (bl ? { ...bl, bug_ids: res.bug_ids } : bl));
+      } else {
+        // No payload — fall back to a refetch.
+        await reloadBugList();
+      }
+      pushToast("success", "Bug removed from list.");
+    } catch (err) {
+      console.error(err);
+      // Roll back optimistic change and refetch to converge with the server.
+      setBugList(prevBugList);
+      pushToast(
+        "error",
+        err?.response?.data?.error || err?.response?.data?.detail || "Failed to remove bug from list."
+      );
+    } finally {
+      setRemovingId(null);
+    }
   };
 
   // ─── Render gates ─────────────────────────────────────────
@@ -361,6 +408,7 @@ export default function QaBugListDetailPage() {
               const isVerified = !!bug.verified_by;
               const isAssigning = assigningId === bug.id;
               const isVerifying = verifyingId === bug.id;
+              const isRemoving = removingId === bug.id;
               return (
                 <div
                   key={bug.id}
@@ -423,7 +471,7 @@ export default function QaBugListDetailPage() {
                         <button
                           type="button"
                           onClick={() => handleVerify(bug.id)}
-                          disabled={isVerifying}
+                          disabled={isVerifying || isRemoving}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-semibold hover:bg-emerald-100 transition-colors disabled:opacity-50"
                         >
                           {isVerifying ? (
@@ -434,6 +482,19 @@ export default function QaBugListDetailPage() {
                           {isVerifying ? "Verifying…" : "Verify"}
                         </button>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(bug.id)}
+                        disabled={isRemoving}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold hover:bg-rose-100 transition-colors disabled:opacity-50"
+                      >
+                        {isRemoving ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                        {isRemoving ? "Removing…" : "Remove"}
+                      </button>
                     </div>
                   </div>
                 </div>

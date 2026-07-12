@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { Clock, FolderPlus, ChevronRight, PlusSquare, ListChecks, ChevronDown } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Clock, FolderPlus, ChevronRight, PlusSquare, ListChecks, ChevronDown, X } from "lucide-react";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import { getBugLists, getMySubmittedBugs } from "@/api/bugs";
 import CreateBugListModal from "@/components/shared/CreateBugListModal";
@@ -9,6 +9,17 @@ import { SeverityBadge, StatusBadge, timeAgo } from "@/components/shared/Dashboa
 
 export default function QaBugListPage() {
   const navigate = useNavigate();
+  // Optional `?status=` filter from the QA Dashboard summary cards.
+  // The card uses /qa/bug-list?status=closed|failed to deep-link into this
+  // page with a status filter applied. Unrecognized values are ignored so
+  // a stray query string never breaks the page.
+  const [searchParams] = useSearchParams();
+  const statusFilter = useMemo(() => {
+    const raw = (searchParams.get("status") || "").toLowerCase();
+    return ["open", "in_progress", "resolved", "closed", "failed", "resubmitted"].includes(raw)
+      ? raw
+      : null;
+  }, [searchParams]);
   // `bugs` is the full project bug list (the pool the AddBugsToListModal can
   // pick from); `refetch` lets us refresh it after a successful add.
   const { projectId, bugs: projectBugs, refetch: refetchProjectBugs } = useDashboardSummary();
@@ -26,6 +37,17 @@ export default function QaBugListPage() {
   // list is currently selected, then opens the shared AddBugsToListModal
   // pre-selected with that single bug id.
   const [addPicker, setAddPicker] = useState({ bugId: null, listId: null });
+
+  // The single bug we're about to add (drives AddBugsToListModal's pre-select).
+  const addPickerBug = useMemo(
+    () => (addPicker.bugId ? myBugs.find((b) => b.id === addPicker.bugId) : null),
+    [addPicker.bugId, myBugs]
+  );
+
+  const initialSelectedIds = useMemo(
+    () => (addPickerBug ? [addPickerBug.id] : []),
+    [addPickerBug]
+  );
 
   const reloadBugLists = useCallback(() => {
     if (!projectId) {
@@ -75,6 +97,20 @@ export default function QaBugListPage() {
       });
   }, [myBugs, bugLists]);
 
+  // When a ?status= filter is active, the existing "Recently reported" panel
+  // reuses its bug-row UI to show every bug the QA has reported with that
+  // status (not just the uncategorized subset). Sorted most-recent first.
+  const statusFilteredBugs = useMemo(() => {
+    if (!statusFilter) return null;
+    return myBugs
+      .filter((b) => b.status === statusFilter)
+      .sort((a, b) => {
+        const ta = new Date(a.updated_at || a.created_at).getTime();
+        const tb = new Date(b.updated_at || b.created_at).getTime();
+        return tb - ta;
+      });
+  }, [myBugs, statusFilter]);
+
   const handleAddSuccess = (_added) => {
     // Refresh lists, my-bugs, and the project bug pool so the row reflects
     // the new assignment immediately.
@@ -84,18 +120,19 @@ export default function QaBugListPage() {
     setAddPicker({ bugId: null, listId: null });
   };
 
-  // The single bug we're about to add (drives AddBugsToListModal's pre-select).
-  const addPickerBug = useMemo(
-    () => (addPicker.bugId ? myBugs.find((b) => b.id === addPicker.bugId) : null),
-    [addPicker.bugId, myBugs]
-  );
-
   // The bug list the picker is targeting — its existing bug_ids become the
   // modal's exclusion list, so already-grouped bugs don't show as addable.
   const addPickerList = useMemo(
     () => (addPicker.listId ? bugLists.find((bl) => bl.id === addPicker.listId) : null),
     [addPicker.listId, bugLists]
   );
+
+  // The bug list rendered in the existing "Recently reported" panel.
+  // Defaults to uncategorized bugs; when ?status= is set, switches to the
+  // status-filtered subset so the existing UI is reused without adding a
+  // new section.
+  const displayedBugs = statusFilter ? statusFilteredBugs : uncategorizedBugs;
+  const isStatusFilterActive = Boolean(statusFilter);
 
   return (
     <div className="space-y-6">
@@ -116,14 +153,20 @@ export default function QaBugListPage() {
         bugListId={addPicker.listId}
         bugs={projectBugs}
         existingBugIds={addPickerList?.bug_ids || []}
-        initialSelectedIds={addPickerBug ? [addPickerBug.id] : []}
+        initialSelectedIds={initialSelectedIds}
         onSuccess={handleAddSuccess}
       />
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Bug Lists</h1>
-          <p className="text-slate-400 mt-1 text-sm">All bug lists created for this project.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+            {isStatusFilterActive ? "Bug Lists — filtered" : "Bug Lists"}
+          </h1>
+          <p className="text-slate-400 mt-1 text-sm">
+            {isStatusFilterActive
+              ? `Showing bugs you've reported with status "${statusFilter}".`
+              : "All bug lists created for this project."}
+          </p>
         </div>
         {projectId && (
           <button
@@ -136,36 +179,58 @@ export default function QaBugListPage() {
         )}
       </div>
 
-      {/* Stage 3: Recently reported, not yet in a list. */}
+      {/* Stage 3: Recently reported, not yet in a list. When ?status= is set,
+          the same panel is reused to show every bug the QA has reported with
+          that status. The UI (row layout, badges, links) is unchanged — only
+          the source list and the header text differ. */}
       {projectId && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
                 <ListChecks className="h-4 w-4 text-blue-600" />
-                Recently reported, not yet in a list
+                {isStatusFilterActive
+                  ? `Bugs with status "${statusFilter}"`
+                  : "Recently reported, not yet in a list"}
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Bugs you reported that haven't been grouped into a list yet.
+                {isStatusFilterActive
+                  ? "Bugs you've reported that match the selected status."
+                  : "Bugs you reported that haven't been grouped into a list yet."}
               </p>
             </div>
-            {uncategorizedBugs.length > 0 && bugLists.length > 0 && (
-              <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                {uncategorizedBugs.length} uncategorized
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {isStatusFilterActive && (
+                <button
+                  type="button"
+                  onClick={() => navigate("/qa/bug-list")}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2 py-0.5 rounded-full transition-colors"
+                  aria-label="Clear status filter"
+                >
+                  <X className="h-3 w-3" />
+                  Clear filter
+                </button>
+              )}
+              {!isStatusFilterActive && uncategorizedBugs.length > 0 && bugLists.length > 0 && (
+                <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                  {uncategorizedBugs.length} uncategorized
+                </span>
+              )}
+            </div>
           </div>
 
           {myBugsLoading ? (
             <div className="p-8 text-center text-slate-500 text-sm">Loading your reported bugs…</div>
-          ) : uncategorizedBugs.length === 0 ? (
+          ) : displayedBugs.length === 0 ? (
             <div className="p-8 text-center">
               <p className="text-sm text-slate-500">
-                {myBugs.length === 0
+                {isStatusFilterActive
+                  ? `No bugs you've reported are currently "${statusFilter}".`
+                  : myBugs.length === 0
                   ? "You haven't reported any bugs in this project yet."
-                  : "All bugs you've reported are already in a list. 🎉"}
+                  : "All bugs you've reported are already in a list!!"}
               </p>
-              {myBugs.length === 0 && (
+              {myBugs.length === 0 && !isStatusFilterActive && (
                 <button
                   type="button"
                   onClick={() => navigate("/qa/submit-bug")}
@@ -178,7 +243,7 @@ export default function QaBugListPage() {
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {uncategorizedBugs.slice(0, 10).map((bug) => (
+              {displayedBugs.slice(0, 10).map((bug) => (
                 <div
                   key={bug.id}
                   className="p-5 hover:bg-slate-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3"
@@ -206,7 +271,10 @@ export default function QaBugListPage() {
                     </div>
                   </button>
 
-                  {bugLists.length > 0 ? (
+                  {/* Add-to-list affordance is hidden under the status filter:
+                      the filter is a read view of a status outcome, not a
+                      grouping task. */}
+                  {!isStatusFilterActive && bugLists.length > 0 ? (
                     <div className="relative shrink-0">
                       <select
                         value=""
@@ -225,7 +293,7 @@ export default function QaBugListPage() {
                       </select>
                       <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
-                  ) : (
+                  ) : !isStatusFilterActive ? (
                     <button
                       type="button"
                       onClick={() => setBugListModalOpen(true)}
@@ -234,10 +302,10 @@ export default function QaBugListPage() {
                       <FolderPlus className="h-3.5 w-3.5" />
                       Create a list first
                     </button>
-                  )}
+                  ) : null}
                 </div>
               ))}
-              {uncategorizedBugs.length > 10 && (
+              {displayedBugs.length > 10 && (
                 <div className="p-4 text-center text-xs text-slate-400">
                   Showing the 10 most recent — use the dashboard for the full list.
                 </div>

@@ -1,5 +1,7 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { X, Pencil } from 'lucide-react';
+import { profileFor } from '@/pages/roleHome';
 
 function getInitials(name = '') {
   const parts = name.trim().split(/\s+/);
@@ -10,6 +12,7 @@ function getInitials(name = '') {
 
 export default function ProfileModal({ open, onClose, user }) {
   if (!open) return null;
+  const profilePath = profileFor(user?.roleName);
 
   return (
     <div
@@ -40,13 +43,14 @@ export default function ProfileModal({ open, onClose, user }) {
           </div>
         </div>
 
-        <button
-          type="button"
+        <Link
+          to={profilePath}
+          onClick={onClose}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
         >
           <Pencil className="h-3.5 w-3.5" />
           Edit Profile
-        </button>
+        </Link>
       </div>
     </div>
   );

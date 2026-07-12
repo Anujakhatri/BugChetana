@@ -69,8 +69,15 @@ class ProjectMemberListView(generics.ListAPIView):
     permission_classes = (IsAuthenticated, CanManageProjectMembers)
 
     def get_queryset(self):
+        # Only Developer-role members are surfaced here — the QA dashboard's
+        # "Project Developers" panel is for the dev team only. QA/RM members
+        # are exposed via the project's `qa_members` field on ProjectSerializer
+        # (see ProjectSerializer.get_qa_members) and via the release_manager
+        # field, so this filter doesn't lose information — it only stops
+        # non-developer members from showing up in the dev-team UI.
         return ProjectMember.objects.filter(
-            project_id=self.kwargs['project_id']
+            project_id=self.kwargs['project_id'],
+            user__role__name__iexact='Developer',
         ).select_related('user', 'user__role', 'assigned_by')
 
 
@@ -130,6 +137,15 @@ class RemoveProjectMemberView(APIView):
     permission_classes = (IsAuthenticated, CanManageProjectMembers)
 
     def delete(self, request, project_id, user_id):
+        # Reject self-removal. Otherwise a user could accidentally (or
+        # maliciously via direct API call) drop themselves from a project
+        # they need access to. The frontend also hides the Remove button on
+        # the user's own row, but we don't trust the client.
+        if str(user_id) == str(request.user.id):
+            return Response(
+                {'error.txt': 'You cannot remove yourself from a project.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             member = ProjectMember.objects.get(
                 project_id=project_id,

@@ -47,7 +47,10 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const showNotifications = user?.roleName === 'Developer' || user?.roleName === 'QA';
+  // Show the bell for every authenticated role, not just Developer/QA —
+  // the backend sends Release Manager notifications too (e.g. when QA passes
+  // a bug, the project's RM is notified to release it).
+  const showNotifications = !!user;
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/90 backdrop-blur-md shadow-sm border-b border-slate-200' : 'bg-transparent'
