@@ -11,6 +11,7 @@ on:
       - github-workflow
       - integration
       - machine-learning
+      - psql-database
 
   pull_request:
     paths:
@@ -24,6 +25,21 @@ jobs:
   ci:
     name: Type-check & Test
     runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bugchetana
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: checkout code
@@ -49,6 +65,11 @@ jobs:
       - name: Run tests with pytest
         env:
           SECRET_KEY: "ci-test-secret-key-not-for-production"
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: bugchetana
+          DB_USER: postgres
+          DB_PASSWORD: postgres
         run: |
           pytest --tb=short --cov=. --cov-report=term-missing
 
