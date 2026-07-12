@@ -152,6 +152,7 @@ class BugDetailView(generics.RetrieveUpdateDestroyAPIView):
                 changed_by=self.request.user,
                 old_status=old_status,
                 new_status=new_status,
+                notes=notes,
             )
 
             qa_members = bug.project.members.filter(user__role__name='QA')
@@ -176,10 +177,27 @@ class BugCommentListCreateView(generics.ListCreateAPIView):
         return BugComment.objects.filter(bug_id=self.kwargs['bug_id'])
 
     def perform_create(self, serializer):
-        serializer.save(
+        comment = serializer.save(
             user=self.request.user,
             bug_id=self.kwargs['bug_id'],
         )
+        # Mirror BugDetailView.perform_update: when a Developer adds a
+        # comment on a bug, notify every QA member of the same project so
+        # they can pick it up. QA/RM comments don't fan out — they already
+        # see the bug via visible_bugs_for and would only spam each other.
+        if get_role(self.request.user) == 'Developer':
+            bug = comment.bug
+            qa_members = bug.project.members.filter(user__role__name='QA')
+            for member in qa_members:
+                create_notification(
+                    recipient=member.user,
+                    message=(
+                        f'Developer {self.request.user.name} commented on Bug '
+                        f'"{bug.title}" (#{bug.id}): {comment.comment_text}'
+                    ),
+                    related_bug=bug,
+                    related_project=bug.project,
+                )
 
 
 # ─── Bug History View ─────────────────────────────────────────
@@ -265,6 +283,7 @@ class QAResultCreateView(generics.CreateAPIView):
                 changed_by=self.request.user,
                 old_status=prev_status,
                 new_status=bug.status,
+                notes = qa_result.notes,
             )
         bug.save()
 
@@ -308,6 +327,7 @@ class BugAssignView(APIView):
                 changed_by=request.user,
                 old_status=bug.status,
                 new_status=bug.status,
+                notes=notes or None,
             )
 
         if record_reassign:
@@ -734,7 +754,8 @@ class BugVerifyView(APIView):
                 bug=bug,
                 changed_by=request.user,
                 old_status=bug.status,
-                new_status=bug.status,  # informational; status does not change
+                new_status=bug.status,
+                notes=notes,
             )
 
         if bug.assigned_to:

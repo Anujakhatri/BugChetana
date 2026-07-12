@@ -20,6 +20,18 @@ export default function NotificationBell() {
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const loadNotifications = useCallback(async () => {
+    // Belt-and-braces guard: even though authReady checks AuthContext, a
+    // forced logout can wipe sessionStorage while the bell is still
+    // mounted (auth:logout is dispatched asynchronously, so there's a
+    // small window where `user` is still set but the access token is
+    // gone). Firing /notifications/ with no token produces a 401 that
+    // then gets caught by the axios refresh interceptor — the refresh
+    // also fails (token was cleared) and the user is logged out, but
+    // the request still logs a 401 in the console on its way through.
+    // Skip the call entirely if there's no access token to send.
+    if (!sessionStorage.getItem('access')) {
+      return;
+    }
     setLoading(true);
     try {
       const data = await getNotifications();

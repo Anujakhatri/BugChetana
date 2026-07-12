@@ -136,6 +136,7 @@ class BugHistory(models.Model):
     )
     old_status = models.CharField(max_length=20)
     new_status = models.CharField(max_length=20)
+    notes = models.TextField(null=True, blank=True)
     changed_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -249,3 +250,4 @@ class QAResult(models.Model):
     result = models.CharField(max_length=10, choices=RESULT_CHOICES)
     notes = models.TextField(null=True, blank=True)
     tested_at = models.DateTimeField(auto_now_add=True)
+

@@ -317,35 +317,30 @@ export default function BugDetail() {
     setQaActionLoading(action);
     setSaveError(null);
     try {
-      let updated;
       if (action === 'reassign') {
-        updated = await assignBug(id, Number(reassignDevId), {
+        await assignBug(id, Number(reassignDevId), {
           record_reassign: true,
           notes: qaActionNotes.trim(),
         });
       } else {
         // 'pass' or 'fail' → POST /bugs/<id>/qa-result/
-        updated = await submitQaResult(id, {
+        await submitQaResult(id, {
           result: action,
           notes: qaActionNotes.trim(),
         });
       }
-      setBug(updated);
-      setEditForm((f) => ({
-        ...f,
-        status: updated.status,
-        assigned_to: updated.assigned_to || '',
-      }));
+
+      await loadAll();
       setQaActionNotes('');
-      setReassignDevId('');
       pushToast(
-        'success',
-        action === 'pass'
-          ? 'Marked as passed. Release manager notified.'
-          : action === 'fail'
-            ? 'Marked as failed. Developer notified.'
-            : 'Reassigned to developer.'
+      'success',
+      action === 'pass'
+        ? 'Marked as passed. Release manager notified.'
+        : action === 'fail'
+          ? 'Marked as failed. Developer notified.'
+          : 'Reassigned to developer.'
       );
+
     } catch (err) {
       console.error(err);
       setSaveError(err.response?.data?.detail || `Failed to ${action} bug.`);
@@ -415,7 +410,7 @@ export default function BugDetail() {
                   >
                     <option value="open">Open</option>
                     <option value="in_progress">In Progress</option>
-                    <option value="resolved">Resolved</option>
+                    {isReleaseManager && <option value="resolved">Resolved</option>}
                     {isReleaseManager && <option value="closed">Closed</option>}
                   </select>
                 ) : (
@@ -425,12 +420,12 @@ export default function BugDetail() {
                 )}
                 {isDeveloper && (
                   <p className="text-xs text-gray-400 mt-1">
-                    Can't set "Closed" — happens automatically when QA passes the bug.
+                    Use "Mark Resolved" below to resolve — requires a note on what was fixed.
                   </p>
                 )}
                 {isQA && canQaAct && (
                   <p className="text-xs text-teal-700 mt-1">
-                    Ready for review — use the Pass / Fail / Reassign actions below.
+                    Ready for review!!
                   </p>
                 )}
               </div>
@@ -497,11 +492,6 @@ export default function BugDetail() {
                   <p className="text-sm text-gray-700 flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5 text-gray-400" />
                     {bug.assigned_to_name || 'Unassigned'}
-                  </p>
-                )}
-                {isQA && !isReleaseManager && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    QA can reassign here, or use the Reassign action below to notify all developers.
                   </p>
                 )}
               </div>
@@ -683,7 +673,15 @@ export default function BugDetail() {
             {/* Description */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h2 className="font-semibold text-gray-900 mb-2">Description</h2>
-              {(isReleaseManager || isDeveloper) ? (
+              {/*
+                Description is editable only by the Release Manager. The
+                Developer updates progress through Comments and the
+                Status/QA workflow — they must not rewrite the bug
+                description. QA also sees it read-only (they review,
+                not edit). Mirrors BugDetailView.DEVELOPER_ALLOWED_FIELDS
+                in the backend.
+              */}
+              {isReleaseManager ? (
                 <textarea
                   name="description" rows={5} value={editForm.description} onChange={handleEditChange}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-y"
@@ -786,6 +784,7 @@ export default function BugDetail() {
             </div>
 
             {/* History */}
+            {/* History */}
             <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-3">
               <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Clock className="h-4 w-4" /> History
@@ -796,19 +795,24 @@ export default function BugDetail() {
               {history.map((h) => {
                 const isSameStatus = h.old_status === h.new_status;
                 return (
-                  <div key={h.id} className="text-sm text-gray-600 flex justify-between border-b border-gray-50 pb-2">
-                    <span>
-                      <span className="font-medium text-gray-800">{h.changed_by_name}</span>{' '}
-                      {isSameStatus ? (
-                        <>reassigned the bug</>
-                      ) : (
-                        <>
-                          changed status from <span className="capitalize">{h.old_status}</span> →{' '}
-                          <span className="capitalize font-medium">{h.new_status}</span>
-                        </>
-                      )}
-                    </span>
-                    <span className="text-gray-400">{new Date(h.changed_at).toLocaleString()}</span>
+                  <div key={h.id} className="text-sm text-gray-600 border-b border-gray-50 pb-2">
+                    <div className="flex justify-between">
+                      <span>
+                        <span className="font-medium text-gray-800">{h.changed_by_name}</span>{' '}
+                        {isSameStatus ? (
+                          <>reassigned the bug</>
+                        ) : (
+                          <>
+                            changed status from <span className="capitalize">{h.old_status}</span> →{' '}
+                            <span className="capitalize font-medium">{h.new_status}</span>
+                          </>
+                        )}
+                      </span>
+                      <span className="text-gray-400">{new Date(h.changed_at).toLocaleString()}</span>
+                    </div>
+                    {h.notes && (
+                      <p className="text-sm text-gray-700 mt-1 pl-0.5 italic">"{h.notes}"</p>
+                    )}
                   </div>
                 );
               })}

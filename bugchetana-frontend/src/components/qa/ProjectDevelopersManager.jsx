@@ -3,8 +3,10 @@ import { Users, Trash2 } from 'lucide-react';
 import { getProjectMembers, addProjectMember, removeProjectMember } from '@/api/projects';
 import { getUsers } from '@/api/users';
 import MemberSearchAdd from '@/components/shared/MemberSearchAdd';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProjectDevelopersManager({ projectId }) {
+  const { user } = useAuth();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
   // Candidate pool is fetched with a server-side role filter — the QA flow
@@ -57,16 +59,33 @@ export default function ProjectDevelopersManager({ projectId }) {
             {members.length === 0 ? (
               <p className="text-sm text-slate-400">No developers assigned to this project.</p>
             ) : (
-              members.map((m) => (
-                <div key={m.user} className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-slate-700">{m.user_name || m.name || m.email}</div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleRemove(m.user)} className="text-rose-600 hover:text-rose-700 text-sm font-medium flex items-center gap-2">
-                      <Trash2 className="h-4 w-4" /> Remove
-                    </button>
+              members.map((m) => {
+                // The backend already filters /api/projects/<id>/members/ to
+                // Developer-role users, but we also guard here so the
+                // logged-in user never sees a Remove button on their own
+                // row. The backend independently rejects self-removal in
+                // RemoveProjectMemberView — this is purely a UX layer.
+                const isSelf = user != null && String(m.user) === String(user.id);
+                return (
+                  <div key={m.user} className="flex items-center justify-between gap-3">
+                    <div className="text-sm text-slate-700">{m.user_name || m.name || m.email}</div>
+                    <div className="flex items-center gap-2">
+                      {isSelf ? (
+                        <span
+                          className="text-xs text-slate-400 italic"
+                          title="You can't remove yourself from this project."
+                        >
+                          (you)
+                        </span>
+                      ) : (
+                        <button onClick={() => handleRemove(m.user)} className="text-rose-600 hover:text-rose-700 text-sm font-medium flex items-center gap-2">
+                          <Trash2 className="h-4 w-4" /> Remove
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
 
             <MemberSearchAdd

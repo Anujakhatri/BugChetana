@@ -228,7 +228,7 @@ export default function QaBugListPage() {
                   ? `No bugs you've reported are currently "${statusFilter}".`
                   : myBugs.length === 0
                   ? "You haven't reported any bugs in this project yet."
-                  : "All bugs you've reported are already in a list. 🎉"}
+                  : "All bugs you've reported are already in a list!!"}
               </p>
               {myBugs.length === 0 && !isStatusFilterActive && (
                 <button

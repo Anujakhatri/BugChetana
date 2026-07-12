@@ -2,7 +2,10 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import api from "@/api/axiosInstance";
 import { useAuth } from "./AuthContext";
 
-const ProjectContext = createContext();
+const ProjectContext = createContext({
+  currentProject : null,
+  loadingProjects : false,
+});
 
 export const ProjectProvider = ({ children }) => {
   const { user } = useAuth();

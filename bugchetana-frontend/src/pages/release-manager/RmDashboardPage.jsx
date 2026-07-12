@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   FolderPlus,
   Rocket,
   RotateCcw,
   Loader2,
+  CheckCircle2,
+  AlertTriangle,
+  Activity,
 } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { projectUrl } from "@/api/projects";
@@ -14,6 +17,51 @@ import InputField from "@/components/shared/InputField";
 import ProjectSelector from "@/components/shared/ProjectSelector";
 import ProjectManagement from "@/pages/ProjectManagement";
 
+// ─── Lightweight inline toast ──────────────────────────────
+// Same pattern used in QaBugListDetailPage and DeveloperDashboardPage —
+// multi-toast stack in the top-right, 3.5s auto-dismiss. Centralizing it
+// here would be nice but the codebase keeps this duplicated per-page, so
+// this page follows the same convention rather than introducing a new one.
+function useToasts() {
+  const [toasts, setToasts] = useState([]);
+  const idRef = useRef(0);
+  const push = useCallback((kind, message) => {
+    const id = ++idRef.current;
+    setToasts((prev) => [...prev, { id, kind, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3500);
+  }, []);
+  return { toasts, push };
+}
+
+function ToastStack({ toasts }) {
+  return (
+    <div className="fixed top-4 right-4 z-50 space-y-2 pointer-events-none">
+      {toasts.map((t) => {
+        const styles =
+          t.kind === "success"
+            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+            : t.kind === "error"
+            ? "bg-rose-50 border-rose-200 text-rose-800"
+            : "bg-blue-50 border-blue-800 text-blue-800";
+        const Icon =
+          t.kind === "success" ? CheckCircle2 : t.kind === "error" ? AlertTriangle : Activity;
+        return (
+          <div
+            key={t.id}
+            className={`pointer-events-auto flex items-start gap-2 max-w-sm border rounded-xl px-4 py-3 shadow-sm ${styles}`}
+            role="status"
+          >
+            <Icon className="h-4 w-4 mt-0.5 shrink-0" />
+            <p className="text-sm font-medium leading-snug">{t.message}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // Merged dashboard for the Release Manager role.
 //
 // Per the spec this route is "the merged Dashboard+Projects page", so it
@@ -23,11 +71,15 @@ import ProjectManagement from "@/pages/ProjectManagement";
 export default function RmDashboardPage() {
   const { user } = useAuth();
   const { summary, bugs, loading, error, refetch, projectId } = useDashboardSummary();
+  const { toasts, push: pushToast } = useToasts();
 
   const [releases, setReleases] = useState([]);
   const [newReleaseVersion, setNewReleaseVersion] = useState("");
   const [newReleaseTitle, setNewReleaseTitle] = useState("");
-  const [selectedBugId, setSelectedBugId] = useState("");
+  // Per-release selection so each release's "Add to release" dropdown
+  // remembers its own pick and each dropdown's attached-bug filter is
+  // scoped to its own release.
+  const [selectedBugIdByRelease, setSelectedBugIdByRelease] = useState({});
   const [developers, setDevelopers] = useState([]);
   const [qaUsers, setQaUsers] = useState([]);
   const [teamLoading, setTeamLoading] = useState(true);
@@ -71,9 +123,11 @@ export default function RmDashboardPage() {
       });
       setNewReleaseVersion("");
       setNewReleaseTitle("");
+      pushToast("success", "Release created.");
       fetchReleases();
     } catch (err) {
-      alert("Failed to create release");
+      console.error(err);
+      pushToast("error", err?.response?.data?.error || "Failed to create release");
     }
   };
 
@@ -81,10 +135,16 @@ export default function RmDashboardPage() {
     if (!bugId) return;
     try {
       await api.post(`/releases/${releaseId}/add-bug/`, { bug_id: bugId });
-      setSelectedBugId("");
+      // Clear this release's pick; leave the others alone.
+      setSelectedBugIdByRelease((prev) => ({ ...prev, [releaseId]: "" }));
+      pushToast("success", "Bug added to release.");
       fetchReleases();
     } catch (err) {
-      alert("Failed to add bug to release");
+      console.error(err);
+      // Backend returns 400 with {"error": "..."} for duplicates and
+      // cross-project bugs (see AddBugToReleaseView in bugs/views.py).
+      // Surface that text verbatim so the RM understands why nothing happened.
+      pushToast("error", err?.response?.data?.error || "Failed to add bug to release");
     }
   };
 
@@ -219,7 +279,18 @@ export default function RmDashboardPage() {
           {releases.length === 0 ? (
             <p className="text-slate-400 text-center py-4 text-sm">No releases found for this project.</p>
           ) : (
-            releases.map((release) => (
+            releases.map((release) => {
+              // The dropdown lists every closed bug in the project, but
+              // we exclude any bug already attached to THIS release so the
+              // RM can't pick a duplicate. (Backend's
+              // AddBugToReleaseView rejects duplicates with 400 — see
+              // bugs/views.py — so this is a UX-layer guard, not a
+              // correctness fix.)
+              const attachedIds = new Set(release.bugs || []);
+              const availableBugs = bugs.filter(
+                (b) => b.status === "closed" && !attachedIds.has(b.id)
+              );
+              return (
               <div key={release.id} className="border border-slate-100 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold text-slate-900">{release.version}</h3>
@@ -228,27 +299,36 @@ export default function RmDashboardPage() {
 
                 <div className="flex gap-2 mb-4">
                   <select
-                    value={selectedBugId}
-                    onChange={(e) => setSelectedBugId(e.target.value)}
+                    value={selectedBugIdByRelease[release.id] || ""}
+                    onChange={(e) =>
+                      setSelectedBugIdByRelease((prev) => ({
+                        ...prev,
+                        [release.id]: e.target.value,
+                      }))
+                    }
                     className="border border-slate-200 rounded-xl px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
                   >
                     <option value="">Select a bug to add...</option>
-                    {bugs.filter((b) => b.status === "closed").map((bug) => (
+                    {availableBugs.map((bug) => (
                       <option key={bug.id} value={bug.id}>#{bug.id} - {bug.title}</option>
                     ))}
                   </select>
                   <button
                     type="button"
-                    onClick={() => handleAddBugToRelease(release.id, selectedBugId)}
+                    onClick={() => handleAddBugToRelease(release.id, selectedBugIdByRelease[release.id] || "")}
                     className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium transition-colors"
                   >
                     Add to release
                   </button>
                 </div>
 
-                {release.bugs && release.bugs.length > 0 && (
+                {release.bug_details && release.bug_details.length > 0 && (
                   <div className="bg-slate-50 rounded-lg p-3 space-y-2">
-                    {release.bugs.map((bug) => (
+                    {/* bug_details comes from ReleaseSerializer.get_bug_details
+                        and has shape {id, title}. Render with the same
+                        "#<id> - <title>" format the dropdown uses for
+                        visual consistency. */}
+                    {release.bug_details.map((bug) => (
                       <div key={bug.id} className="text-sm text-slate-700 bg-white p-2 rounded-lg border border-slate-100">
                         #{bug.id} - {bug.title}
                       </div>
@@ -256,10 +336,13 @@ export default function RmDashboardPage() {
                   </div>
                 )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
+
+      <ToastStack toasts={toasts} />
     </div>
   );
 }
