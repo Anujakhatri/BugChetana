@@ -4,12 +4,14 @@ import { useAuth } from '@/context/AuthContext';
 import {
   getBug, updateBug, deleteBug, resubmitBug,
   getBugComments, addBugComment, getBugHistory,
+  submitQaResult, assignBug, listUsers,
 } from '@/api/bugs';
 import { getRoast, getSuggestedFix } from '@/api/ai';
 import PageContainer from '@/components/layout/PageContainer';
 import {
   ArrowLeft, Loader2, Trash2, MessageSquare, Clock,
-  Flame, Wrench, Sparkles, Save,
+  Flame, Wrench, Sparkles, Save, Users,
+  CheckCircle2, XCircle, RefreshCw,
 } from 'lucide-react';
 
 const SEVERITY_STYLES = {
@@ -55,6 +57,25 @@ export default function BugDetail() {
   const [deleting, setDeleting] = useState(false);
   const [resubmitLoading, setResubmitLoading] = useState(false);
 
+  // Developers list (for QA / RM assignee picker)
+  const [developers, setDevelopers] = useState([]);
+  const [developersLoading, setDevelopersLoading] = useState(false);
+
+  // Workflow action state
+  const [resolveNotes, setResolveNotes] = useState('');
+  const [showResolvePrompt, setShowResolvePrompt] = useState(false);
+  const [markResolving, setMarkResolving] = useState(false);
+  const [qaActionLoading, setQaActionLoading] = useState(null); // 'pass' | 'fail' | 'reassign' | null
+  const [qaActionNotes, setQaActionNotes] = useState('');
+  const [reassignDevId, setReassignDevId] = useState('');
+
+  // Lightweight inline toast (matches the dashboard pattern)
+  const [toast, setToast] = useState(null);
+  const pushToast = (kind, message) => {
+    setToast({ kind, message });
+    setTimeout(() => setToast(null), 3500);
+  };
+
   const role = user?.roleName;
 
   const loadAll = useCallback(async () => {
@@ -91,12 +112,34 @@ export default function BugDetail() {
     loadAll();
   }, [loadAll]);
 
+  // Role / permission flags — declared up here because the effects below
+  // need to read them.
   // Mirrors bugs/views.py BugDetailView.perform_update() exactly —
   // showing fields the backend would reject keeps the UI honest.
   const isReleaseManager = role === 'Release Manager';
   const isDeveloper = role === 'Developer' &&
     (user?.id === bug?.assigned_to || user?.id === bug?.created_by);
   const isQA = role === 'QA';
+  // "Mark Resolved" is gated to the *currently assigned* developer only,
+  // even though creators and other developers can view the bug.
+  const isAssignedDeveloper = role === 'Developer' && user?.id === bug?.assigned_to;
+
+  // Load developer roster once we know the bug (and thus the project).
+  // Only QA / RM pick from it; Developer view doesn't need it.
+  useEffect(() => {
+    if (!bug) return;
+    if (!(isQA || isReleaseManager)) return;
+    setDevelopersLoading(true);
+    listUsers({ role: 'Developer' })
+      .then((data) => setDevelopers(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.error('Failed to load developers', err);
+        setDevelopers([]);
+      })
+      .finally(() => setDevelopersLoading(false));
+    // isQA / isReleaseManager are derived from role + bug; recompute when either changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bug?.id, role]);
 
   const canEdit = isReleaseManager || isDeveloper || isQA;
   const canDelete = isReleaseManager;
@@ -218,6 +261,100 @@ export default function BugDetail() {
 
   const canResubmit = isDeveloper && bug?.status === 'failed';
 
+  // ─── Workflow action handlers ─────────────────────────────
+  // Developer: Mark Resolved. Only the currently-assigned developer is
+  // allowed (mirrors backend BugDetailView.perform_update gating).
+  const canMarkResolved =
+    isAssignedDeveloper && (bug?.status === 'open' || bug?.status === 'in_progress');
+
+  const handleMarkResolved = async () => {
+    if (!resolveNotes.trim()) {
+      pushToast('error', 'Please describe the fix before marking resolved.');
+      return;
+    }
+    setMarkResolving(true);
+    setSaveError(null);
+    try {
+      const updated = await updateBug(id, {
+        status: 'resolved',
+        notes: resolveNotes.trim(),
+      });
+      setBug(updated);
+      setEditForm((f) => ({ ...f, status: updated.status }));
+      setShowResolvePrompt(false);
+      setResolveNotes('');
+      pushToast('success', 'Marked as resolved. QA will pick it up.');
+    } catch (err) {
+      console.error(err);
+      setSaveError(err.response?.data?.detail || 'Failed to mark resolved.');
+      pushToast('error', 'Failed to mark resolved.');
+    } finally {
+      setMarkResolving(false);
+    }
+  };
+
+  // QA: Pass / Fail / Reassign. Backend permission is CanSubmitQAResult
+  // (QA + project member); the frontend mirrors it.
+  const canQaAct = isQA && (bug?.status === 'resolved' || bug?.status === 'resubmitted');
+
+  const handleQaAction = async (action) => {
+    if (action === 'reassign') {
+      if (!reassignDevId) {
+        pushToast('error', 'Pick a developer to reassign to.');
+        return;
+      }
+      if (!qaActionNotes.trim()) {
+        pushToast('error', 'Please add a note when reassigning.');
+        return;
+      }
+    } else {
+      if (!qaActionNotes.trim()) {
+        pushToast('error', `Please add a note for "${action}".`);
+        return;
+      }
+    }
+
+    setQaActionLoading(action);
+    setSaveError(null);
+    try {
+      let updated;
+      if (action === 'reassign') {
+        updated = await assignBug(id, Number(reassignDevId), {
+          record_reassign: true,
+          notes: qaActionNotes.trim(),
+        });
+      } else {
+        // 'pass' or 'fail' → POST /bugs/<id>/qa-result/
+        updated = await submitQaResult(id, {
+          result: action,
+          notes: qaActionNotes.trim(),
+        });
+      }
+      setBug(updated);
+      setEditForm((f) => ({
+        ...f,
+        status: updated.status,
+        assigned_to: updated.assigned_to || '',
+      }));
+      setQaActionNotes('');
+      setReassignDevId('');
+      pushToast(
+        'success',
+        action === 'pass'
+          ? 'Marked as passed. Release manager notified.'
+          : action === 'fail'
+            ? 'Marked as failed. Developer notified.'
+            : 'Reassigned to developer.'
+      );
+    } catch (err) {
+      console.error(err);
+      setSaveError(err.response?.data?.detail || `Failed to ${action} bug.`);
+      pushToast('error', `Failed to ${action} bug.`);
+    } finally {
+      setQaActionLoading(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -291,6 +428,11 @@ export default function BugDetail() {
                     Can't set "Closed" — happens automatically when QA passes the bug.
                   </p>
                 )}
+                {isQA && canQaAct && (
+                  <p className="text-xs text-teal-700 mt-1">
+                    Ready for review — use the Pass / Fail / Reassign actions below.
+                  </p>
+                )}
               </div>
 
               {/* Severity */}
@@ -330,19 +472,36 @@ export default function BugDetail() {
 
               {/* Assignee */}
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Assignee (User ID)</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Assignee</label>
                 {(isReleaseManager || isQA) ? (
-                  <input
-                    name="assigned_to" value={editForm.assigned_to} onChange={handleEditChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-                    placeholder="Unassigned"
-                  />
+                  developersLoading ? (
+                    <p className="text-xs text-gray-400 flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Loading developers…
+                    </p>
+                  ) : (
+                    <select
+                      name="assigned_to"
+                      value={editForm.assigned_to || ''}
+                      onChange={handleEditChange}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white"
+                    >
+                      <option value="">— Unassigned —</option>
+                      {developers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name || u.email}
+                        </option>
+                      ))}
+                    </select>
+                  )
                 ) : (
-                  <p className="text-sm text-gray-700">{bug.assigned_to_name || 'Unassigned'}</p>
+                  <p className="text-sm text-gray-700 flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-gray-400" />
+                    {bug.assigned_to_name || 'Unassigned'}
+                  </p>
                 )}
-                {isQA && (
+                {isQA && !isReleaseManager && (
                   <p className="text-xs text-gray-400 mt-1">
-                    QA can only reassign — use the QA result flow to pass/fail.
+                    QA can reassign here, or use the Reassign action below to notify all developers.
                   </p>
                 )}
               </div>
@@ -382,6 +541,126 @@ export default function BugDetail() {
                   {resubmitLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   Resubmit for QA
                 </button>
+              )}
+
+              {/* ─── Developer: Mark Resolved ─── */}
+              {canMarkResolved && !showResolvePrompt && (
+                <button
+                  type="button"
+                  onClick={() => setShowResolvePrompt(true)}
+                  className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  Mark Resolved
+                </button>
+              )}
+              {canMarkResolved && showResolvePrompt && (
+                <div className="space-y-2 border border-teal-200 rounded-lg p-3 bg-teal-50/40">
+                  <label className="block text-xs font-medium text-gray-600">
+                    What did you fix?
+                  </label>
+                  <textarea
+                    value={resolveNotes}
+                    onChange={(e) => setResolveNotes(e.target.value)}
+                    rows={3}
+                    placeholder="Describe the fix before marking resolved…"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-y"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleMarkResolved}
+                      disabled={markResolving}
+                      className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-60"
+                    >
+                      {markResolving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                      Confirm Resolved
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowResolvePrompt(false); setResolveNotes(''); }}
+                      disabled={markResolving}
+                      className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── QA: Pass / Fail / Reassign ─── */}
+              {canQaAct && (
+                <div className="space-y-2 border-t border-gray-100 pt-3">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    QA review
+                  </p>
+                  <textarea
+                    value={qaActionNotes}
+                    onChange={(e) => setQaActionNotes(e.target.value)}
+                    rows={2}
+                    placeholder="Notes for your decision (required)…"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-y"
+                  />
+
+                  {/* Reassign needs a developer pick; the button is the last step. */}
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={reassignDevId}
+                      onChange={(e) => setReassignDevId(e.target.value)}
+                      disabled={developersLoading || qaActionLoading === 'reassign'}
+                      className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white disabled:opacity-60"
+                    >
+                      <option value="">
+                        {developersLoading ? 'Loading developers…' : '— Reassign to —'}
+                      </option>
+                      {developers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name || u.email}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleQaAction('reassign')}
+                      disabled={
+                        !reassignDevId ||
+                        !qaActionNotes.trim() ||
+                        qaActionLoading !== null
+                      }
+                      className="flex items-center gap-1 bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-50"
+                    >
+                      {qaActionLoading === 'reassign'
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <RefreshCw className="h-4 w-4" />}
+                      Reassign
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleQaAction('pass')}
+                      disabled={!qaActionNotes.trim() || qaActionLoading !== null}
+                      className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-50"
+                    >
+                      {qaActionLoading === 'pass'
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <CheckCircle2 className="h-4 w-4" />}
+                      Pass
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQaAction('fail')}
+                      disabled={!qaActionNotes.trim() || qaActionLoading !== null}
+                      className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-50"
+                    >
+                      {qaActionLoading === 'fail'
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <XCircle className="h-4 w-4" />}
+                      Fail
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -514,19 +793,44 @@ export default function BugDetail() {
               {history.length === 0 && (
                 <p className="text-sm text-gray-400">No status changes yet.</p>
               )}
-              {history.map((h) => (
-                <div key={h.id} className="text-sm text-gray-600 flex justify-between border-b border-gray-50 pb-2">
-                  <span>
-                    <span className="font-medium text-gray-800">{h.changed_by_name}</span>{' '}
-                    changed status from <span className="capitalize">{h.old_status}</span> →{' '}
-                    <span className="capitalize font-medium">{h.new_status}</span>
-                  </span>
-                  <span className="text-gray-400">{new Date(h.changed_at).toLocaleString()}</span>
-                </div>
-              ))}
+              {history.map((h) => {
+                const isSameStatus = h.old_status === h.new_status;
+                return (
+                  <div key={h.id} className="text-sm text-gray-600 flex justify-between border-b border-gray-50 pb-2">
+                    <span>
+                      <span className="font-medium text-gray-800">{h.changed_by_name}</span>{' '}
+                      {isSameStatus ? (
+                        <>reassigned the bug</>
+                      ) : (
+                        <>
+                          changed status from <span className="capitalize">{h.old_status}</span> →{' '}
+                          <span className="capitalize font-medium">{h.new_status}</span>
+                        </>
+                      )}
+                    </span>
+                    <span className="text-gray-400">{new Date(h.changed_at).toLocaleString()}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </form>
+
+        {/* Inline toast for workflow actions */}
+        {toast && (
+          <div
+            className={
+              'fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium ' +
+              (toast.kind === 'success'
+                ? 'bg-emerald-600 text-white'
+                : toast.kind === 'error'
+                  ? 'bg-rose-600 text-white'
+                  : 'bg-blue-600 text-white')
+            }
+          >
+            {toast.message}
+          </div>
+        )}
     </PageContainer>
   );
 }

@@ -298,6 +298,18 @@ class BugAssignView(APIView):
             related_bug=bug,
         )
 
+        # Record the assignment in the bug's history timeline so bare PATCHes
+        # (with no QA result) are still visible alongside status changes.
+        # Mirrors the BugVerifyView convention (old_status == new_status when
+        # the action does not move the status).
+        if previous_assignee != bug.assigned_to_id:
+            BugHistory.objects.create(
+                bug=bug,
+                changed_by=request.user,
+                old_status=bug.status,
+                new_status=bug.status,
+            )
+
         if record_reassign:
             QAResult.objects.create(
                 bug=bug,
