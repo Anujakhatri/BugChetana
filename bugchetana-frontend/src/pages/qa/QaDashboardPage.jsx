@@ -376,7 +376,7 @@ function SummaryCard({ label, value, iconBg, icon, highlight, caption, to }) {
   const navigate = useNavigate();
   const isClickable = Boolean(to);
   const handleClick = () => {
-    console.log('SummaryCard clicked', { to, isClickable });
+    // console.log('SummaryCard clicked', { to, isClickable });
     if (to) navigate(to);
   };
 
