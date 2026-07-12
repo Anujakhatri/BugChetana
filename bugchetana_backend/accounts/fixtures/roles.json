@@ -1,0 +1,14 @@
+[
+  {
+    "model": "accounts.role",
+    "fields": {"name": "Developer", "description": "Software developer role"}
+  },
+  {
+    "model": "accounts.role",
+    "fields": {"name": "QA", "description": "Quality assurance role"}
+  },
+  {
+    "model": "accounts.role",
+    "fields": {"name": "Release Manager", "description": "Release management role"}
+  }
+]
