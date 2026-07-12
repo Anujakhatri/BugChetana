@@ -56,6 +56,8 @@ export default function BugDetail() {
 
   const [deleting, setDeleting] = useState(false);
   const [resubmitLoading, setResubmitLoading] = useState(false);
+  const [resubmitNotes, setResubmitNotes] = useState('');
+  const [showResubmitPrompt, setShowResubmitPrompt] = useState(false);
 
   // Developers list (for QA / RM assignee picker)
   const [developers, setDevelopers] = useState([]);
@@ -240,18 +242,27 @@ export default function BugDetail() {
   };
 
   const handleResubmit = async () => {
+    const notes = resubmitNotes.trim();
+    if (!notes) {
+      setSaveError('Please describe what you fixed before resubmitting.');
+      return;
+    }
     setResubmitLoading(true);
     setSaveError(null);
     try {
-      const updated = await resubmitBug(id, {
-        title: editForm.title,
-        description: editForm.description,
-      });
+      // Backend BugResubmitSerializer requires `notes` (validated non-empty) and
+      // records it in BugHistory.notes + a BugComment, matching the Mark
+      // Resolved audit trail. title/description edits are NOT sent here — if
+      // the developer wants to amend them, they do that via the "Save Changes"
+      // form above before resubmitting.
+      const updated = await resubmitBug(id, { notes });
       setBug(updated);
       setEditForm({
         ...editForm,
         status: updated.status,
       });
+      setResubmitNotes('');
+      setShowResubmitPrompt(false);
     } catch (err) {
       setSaveError(err.response?.data?.detail || 'Failed to resubmit bug.');
     } finally {
@@ -521,16 +532,48 @@ export default function BugDetail() {
                   </button>
                 </>
               )}
-              {canResubmit && (
+              {canResubmit && !showResubmitPrompt && (
                 <button
                   type="button"
-                  onClick={handleResubmit}
-                  disabled={resubmitLoading}
-                  className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-70"
+                  onClick={() => setShowResubmitPrompt(true)}
+                  className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
                 >
-                  {resubmitLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  <Save className="h-4 w-4" />
                   Resubmit for QA
                 </button>
+              )}
+              {canResubmit && showResubmitPrompt && (
+                <div className="space-y-2 border border-amber-200 rounded-lg p-3 bg-amber-50/40">
+                  <label className="block text-xs font-medium text-gray-600">
+                    What did you fix this time?
+                  </label>
+                  <textarea
+                    value={resubmitNotes}
+                    onChange={(e) => setResubmitNotes(e.target.value)}
+                    rows={3}
+                    placeholder="Describe the fix before resubmitting to QA…"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-y"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleResubmit}
+                      disabled={resubmitLoading}
+                      className="flex-1 flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-60"
+                    >
+                      {resubmitLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      Confirm Resubmit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowResubmitPrompt(false); setResubmitNotes(''); }}
+                      disabled={resubmitLoading}
+                      className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               )}
 
               {/* ─── Developer: Mark Resolved ─── */}

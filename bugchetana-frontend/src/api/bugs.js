@@ -63,6 +63,14 @@ export const addBugsToList = (projectId, bugListId, bugIds) =>
     .post(`/projects/${projectId}/bug-lists/${bugListId}/items/`, { bug_ids: bugIds })
     .then(res => res.data);
 
+// Remove a single Bug from a BugList. The underlying Bug itself is preserved;
+// only the BugListItem association row is deleted. Returns the response payload
+// (includes the refreshed bug_ids list for the affected BugList).
+export const removeBugFromList = (projectId, bugListId, bugId) =>
+  api
+    .delete(`/projects/${projectId}/bug-lists/${bugListId}/items/${bugId}/`)
+    .then(res => res.data);
+
 export const verifyBug = (bugId) =>
   api.patch(`/bugs/${bugId}/verify/`).then(res => res.data);
 

@@ -356,15 +356,30 @@ class BugResubmitView(APIView):
         serializer = BugResubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        notes = serializer.validated_data['notes']
         if 'title' in serializer.validated_data:
             bug.title = serializer.validated_data['title']
         if 'description' in serializer.validated_data:
             bug.description = serializer.validated_data['description']
 
+        old_status = bug.status
         bug.status = 'resubmitted'
         bug.qa_comment = None
         bug._changed_by = request.user
         bug.save()
+
+        # Record the resubmit in the bug's audit trail, mirroring the Mark
+        # Resolved flow in BugDetailView.perform_update: a BugComment for the
+        # comment list and a BugHistory row carrying the same notes so the
+        # History timeline surfaces the resubmit alongside status changes.
+        BugComment.objects.create(bug=bug, user=request.user, comment_text=notes)
+        BugHistory.objects.create(
+            bug=bug,
+            changed_by=request.user,
+            old_status=old_status,
+            new_status='resubmitted',
+            notes=notes,
+        )
 
         return Response(BugSerializer(bug).data, status=status.HTTP_200_OK)
 

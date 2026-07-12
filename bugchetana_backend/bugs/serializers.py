@@ -139,13 +139,21 @@ class BugAssignSerializer(serializers.Serializer):
 
 
 class BugResubmitSerializer(serializers.Serializer):
-    title = serializers.CharField(max_length=255, required=False)
-    description = serializers.CharField(required=False)
+    # Notes are required on resubmit — a free-text "what was fixed" entry that
+    # lands in BugHistory.notes (and as a BugComment) the same way Mark Resolved
+    # records its resolve note. Mirrors the pattern in BugDetailView.perform_update
+    # (which requires `notes` when a Developer moves status to 'resolved').
+    notes = serializers.CharField(required=True, allow_blank=False)
+    # title / description remain optional: a developer may still want to amend
+    # them alongside the resubmit, but they are not required.
+    title = serializers.CharField(max_length=255, required=False, allow_blank=False)
+    description = serializers.CharField(required=False, allow_blank=False)
 
-    def validate(self, data):
-        if not data.get('title') and not data.get('description'):
-            raise serializers.ValidationError('Provide an updated title or description to resubmit.')
-        return data
+    def validate_notes(self, value):
+        value = (value or '').strip()
+        if not value:
+            raise serializers.ValidationError('A comment is required when resubmitting a bug.')
+        return value
 
 
 class DeveloperBugHistorySerializer(serializers.ModelSerializer):

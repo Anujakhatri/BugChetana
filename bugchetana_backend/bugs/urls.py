@@ -7,7 +7,7 @@ from .views import (
     DashboardSummaryView,
     QaDashboardSummaryView, DeveloperDashboardSummaryView,
     DeveloperSubmittedBugsView, QAResultHistoryView,
-    BugListCreateViewForProject, BugListItemAddView, ReleaseManagerHistoryView,
+    BugListCreateViewForProject, BugListItemAddView, BugListItemDeleteView, ReleaseManagerHistoryView,
 )
 
 urlpatterns = [
@@ -37,6 +37,7 @@ urlpatterns = [
     # Bug lists (QA)
     path('projects/<int:project_id>/bug-lists/', BugListCreateViewForProject.as_view(), name='bug-lists'),
     path('projects/<int:project_id>/bug-lists/<int:bug_list_id>/items/', BugListItemAddView.as_view(), name='bug-list-items-add'),
+    path('projects/<int:project_id>/bug-lists/<int:bug_list_id>/items/<int:bug_id>/', BugListItemDeleteView.as_view(), name='bug-list-items-delete'),
 
     # Release Manager history
     path('release-manager/history/', ReleaseManagerHistoryView.as_view(), name='release-manager-history'),
