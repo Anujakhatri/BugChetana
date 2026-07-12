@@ -369,36 +369,66 @@ export default function QaDashboardPage() {
 function SummaryCard({ label, value, iconBg, icon, highlight, caption, to }) {
   // When a `to` prop is provided the card is rendered as a clickable button
   // with React Router navigation, a pointer cursor, and a subtle hover lift
-  // (existing cards without `to` render unchanged).
+  // (existing cards without `to` render unchanged). Visual treatment is
+  // intentionally aligned with the developer-side SummaryCard and the RM
+  // severity tiles — a soft tinted icon swatch + top accent bar, no
+  // saturated gradient squares.
   const navigate = useNavigate();
   const isClickable = Boolean(to);
   const handleClick = () => {
+    console.log('SummaryCard clicked', { to, isClickable });
     if (to) navigate(to);
   };
+
+  // Map the legacy saturated `iconBg="from-X-500 to-X-600"` prop onto the
+  // new soft-swatch palette so existing call sites don't need to be
+  // rewritten. The accent-bar tint matches the swatch.
+  const SWATCH_BY_GRADIENT = {
+    "from-emerald-500 to-emerald-600": { swatch: "bg-emerald-50 ring-emerald-200/70", icon: "text-emerald-600", bar: "bg-emerald-500" },
+    "from-red-500 to-red-600":         { swatch: "bg-rose-50 ring-rose-200/70",       icon: "text-rose-600",    bar: "bg-rose-500"    },
+    "from-blue-500 to-blue-600":       { swatch: "bg-blue-50 ring-blue-200/70",       icon: "text-blue-600",    bar: "bg-blue-500"    },
+    "from-rose-500 to-rose-600":       { swatch: "bg-rose-50 ring-rose-200/70",       icon: "text-rose-600",    bar: "bg-rose-500"    },
+    "from-purple-500 to-purple-600":   { swatch: "bg-slate-100 ring-slate-200",       icon: "text-slate-600",   bar: "bg-slate-400"   },
+  };
+  const c = SWATCH_BY_GRADIENT[iconBg] || { swatch: "bg-slate-100 ring-slate-200", icon: "text-slate-600", bar: "bg-slate-400" };
+
+  // "highlight" stays semantically the same (amber accent) but now
+  // matches the system-wide tone rather than the old rose-vs-amber split.
+  const ringClass = highlight
+    ? "border-amber-200"
+    : "border-slate-200/70";
+  const numberClass = highlight ? "text-amber-700" : "text-slate-900";
+
   return (
     <button
       type="button"
       onClick={handleClick}
       disabled={!isClickable}
-      className={`text-left w-full bg-white rounded-2xl border shadow-sm p-5 flex items-center justify-between transition-all ${
-        highlight ? "border-amber-200" : "border-slate-100"
-      } ${
+      className={`text-left w-full relative bg-white rounded-2xl border shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.04)] p-5 flex items-center justify-between overflow-hidden transition-all ${ringClass} ${
         isClickable
-          ? "cursor-pointer hover:shadow-md hover:border-slate-200 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          ? "cursor-pointer hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_8px_20px_rgba(15,23,42,0.06)] hover:border-slate-300 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           : "cursor-default"
       }`}
     >
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">{label}</p>
-        <p className={`text-2xl font-bold mt-2 ${highlight ? "text-amber-700" : "text-slate-800"}`}>
+      <span aria-hidden className={`absolute top-0 left-5 right-5 h-1 rounded-full ${c.bar}`} />
+      <div className="min-w-0 pt-1">
+        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.08em]">
+          {label}
+        </p>
+        <p className={`text-3xl font-semibold tabular-nums mt-2 ${numberClass}`}>
           {value}
         </p>
         {caption && (
-          <p className="text-[10px] text-slate-400 mt-1 leading-snug">{caption}</p>
+          <p className="text-[10px] text-slate-400 mt-1.5 leading-snug">{caption}</p>
         )}
       </div>
-      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${iconBg} flex items-center justify-center shadow-md shrink-0`}>
-        {icon}
+      <div className={`w-11 h-11 rounded-xl ring-1 ring-inset flex items-center justify-center shrink-0 ${c.swatch}`}>
+        {/* `icon` is a JSX element with its own color (e.g. text-white from
+            the old gradient). Re-tint it to the swatch color so the icon
+            reads against the soft background, not the saturated one. */}
+        {React.isValidElement(icon)
+          ? React.cloneElement(icon, { className: `h-5 w-5 ${c.icon}` })
+          : icon}
       </div>
     </button>
   );

@@ -7,6 +7,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   Activity,
+  Flame,
+  BarChart3,
+  Minus,
+  XCircle,
 } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { projectUrl } from "@/api/projects";
@@ -58,6 +62,41 @@ function ToastStack({ toasts }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Tile used in the Release Manager "Project overview" severity row.
+// Mirrors the visual system used by the QA/Developer SummaryCard tiles:
+// soft tinted swatch for the icon, top accent bar, refined typography.
+// Pure JSX/style — receives the count and color/icon mapping from the
+// parent; does not call any hooks or read state.
+const TILE_COLOR_CLASSES = {
+  rose:   { swatch: "bg-rose-50 ring-rose-200/70",     icon: "text-rose-600",   bar: "bg-rose-500"   },
+  amber:  { swatch: "bg-amber-50 ring-amber-200/70",   icon: "text-amber-600",  bar: "bg-amber-500"  },
+  blue:   { swatch: "bg-blue-50 ring-blue-200/70",     icon: "text-blue-600",   bar: "bg-blue-500"   },
+  emerald:{ swatch: "bg-emerald-50 ring-emerald-200/70", icon: "text-emerald-600", bar: "bg-emerald-500" },
+  slate:  { swatch: "bg-slate-100 ring-slate-200",     icon: "text-slate-600",  bar: "bg-slate-400"  },
+};
+
+function SeverityTile({ label, value, color, Icon }) {
+  const c = TILE_COLOR_CLASSES[color] || TILE_COLOR_CLASSES.slate;
+  return (
+    <div className="relative bg-white rounded-2xl border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.04)] p-5 overflow-hidden">
+      <span aria-hidden className={`absolute top-0 left-5 right-5 h-1 rounded-full ${c.bar}`} />
+      <div className="flex items-start justify-between gap-3 pt-1">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.08em]">
+            {label}
+          </p>
+          <p className={`text-3xl font-semibold tabular-nums mt-2 ${c.icon}`}>
+            {value}
+          </p>
+        </div>
+        <div className={`w-11 h-11 rounded-xl ring-1 ring-inset flex items-center justify-center shrink-0 ${c.swatch}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -162,34 +201,28 @@ export default function RmDashboardPage() {
       <ProjectSelector />
 
       {/* Project overview */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-        <h2 className="text-base font-semibold text-slate-800 mb-4">Project overview</h2>
+      <div className="bg-white rounded-2xl border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.04)] p-6">
+        <div className="flex items-baseline justify-between mb-5">
+          <h2 className="text-base font-semibold text-slate-900">Project overview</h2>
+          <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+            Severity breakdown
+          </p>
+        </div>
         {loading ? (
           <p className="text-sm text-slate-400 text-center py-4">Loading...</p>
         ) : error ? (
           <p className="text-sm text-red-500 text-center py-4">{error}</p>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="p-4 bg-slate-50 rounded-xl">
-              <div className="text-xs text-slate-400 uppercase tracking-wide">Critical</div>
-              <div className="text-2xl font-bold text-red-600 mt-1">{summary?.severity_breakdown?.critical || 0}</div>
-            </div>
-            <div className="p-4 bg-slate-50 rounded-xl">
-              <div className="text-xs text-slate-400 uppercase tracking-wide">High</div>
-              <div className="text-2xl font-bold text-orange-500 mt-1">{summary?.severity_breakdown?.high || 0}</div>
-            </div>
-            <div className="p-4 bg-slate-50 rounded-xl">
-              <div className="text-xs text-slate-400 uppercase tracking-wide">Medium</div>
-              <div className="text-2xl font-bold text-yellow-500 mt-1">{summary?.severity_breakdown?.medium || 0}</div>
-            </div>
-            <div className="p-4 bg-slate-50 rounded-xl">
-              <div className="text-xs text-slate-400 uppercase tracking-wide">Low</div>
-              <div className="text-2xl font-bold text-green-500 mt-1">{summary?.severity_breakdown?.low || 0}</div>
-            </div>
-            <div className="p-4 bg-slate-50 rounded-xl">
-              <div className="text-xs text-slate-400 uppercase tracking-wide">Failed</div>
-              <div className="text-2xl font-bold text-red-600 mt-1">{summary?.failed_bugs || 0}</div>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {[
+              { key: "critical", label: "Critical", value: summary?.severity_breakdown?.critical || 0, color: "rose",    icon: AlertTriangle },
+              { key: "high",     label: "High",     value: summary?.severity_breakdown?.high     || 0, color: "amber",   icon: Flame },
+              { key: "medium",   label: "Medium",   value: summary?.severity_breakdown?.medium   || 0, color: "blue",    icon: BarChart3 },
+              { key: "low",      label: "Low",      value: summary?.severity_breakdown?.low      || 0, color: "slate",   icon: Minus },
+              { key: "failed",   label: "Failed",   value: summary?.failed_bugs                  || 0, color: "rose",    icon: XCircle },
+            ].map(({ key, label, value, color, icon: Icon }) => (
+              <SeverityTile key={key} label={label} value={value} color={color} Icon={Icon} />
+            ))}
           </div>
         )}
       </div>

@@ -710,6 +710,48 @@ class BugListItemAddView(APIView):
         )
 
 
+class BugListItemDeleteView(APIView):
+    """
+    DELETE /api/projects/<project_id>/bug-lists/<bug_list_id>/items/<bug_id>/
+
+    Remove a single Bug from a BugList by deleting the BugListItem
+    association row. Does NOT delete the Bug itself. Mirrors
+    BugListItemAddView's permission classes (IsAuthenticated +
+    CanCreateBugList) so only QA members of the project can manage
+    list membership, matching the existing add endpoint.
+    """
+    permission_classes = (IsAuthenticated, CanCreateBugList)
+
+    def delete(self, request, project_id, bug_list_id, bug_id):
+        bug_list = get_object_or_404(
+            BugList.objects.select_related('project'),
+            pk=bug_list_id,
+            project_id=project_id,
+        )
+
+        try:
+            item = BugListItem.objects.get(bug_list=bug_list, bug_id=bug_id)
+        except BugListItem.DoesNotExist:
+            return Response(
+                {'error.txt': 'Bug is not in this list.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        item.delete()
+
+        return Response(
+            {
+                'message': 'Bug removed from list.',
+                'bug_list_id': bug_list.id,
+                'bug_ids': list(
+                    BugListItem.objects.filter(bug_list=bug_list)
+                    .values_list('bug_id', flat=True)
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class BugVerifyView(APIView):
     """
     PATCH /api/bugs/<pk>/verify/

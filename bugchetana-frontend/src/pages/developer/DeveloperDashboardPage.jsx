@@ -632,23 +632,49 @@ export default function DeveloperDashboardPage() {
 }
 
 function SummaryCard({ label, value, iconBg, icon, highlight, caption }) {
+  // Visual treatment is intentionally aligned with the QA-side
+  // SummaryCard and the RM severity tiles — a soft tinted icon swatch
+  // + top accent bar, no saturated gradient squares. The non-clickable
+  // contract is preserved: this version never accepted a `to` prop.
+  const SWATCH_BY_GRADIENT = {
+    "from-emerald-500 to-emerald-600": { swatch: "bg-emerald-50 ring-emerald-200/70", icon: "text-emerald-600", bar: "bg-emerald-500" },
+    "from-red-500 to-red-600":         { swatch: "bg-rose-50 ring-rose-200/70",       icon: "text-rose-600",    bar: "bg-rose-500"    },
+    "from-blue-500 to-blue-600":       { swatch: "bg-blue-50 ring-blue-200/70",       icon: "text-blue-600",    bar: "bg-blue-500"    },
+    "from-rose-500 to-rose-600":       { swatch: "bg-rose-50 ring-rose-200/70",       icon: "text-rose-600",    bar: "bg-rose-500"    },
+    "from-purple-500 to-purple-600":   { swatch: "bg-slate-100 ring-slate-200",       icon: "text-slate-600",   bar: "bg-slate-400"   },
+  };
+  const c = SWATCH_BY_GRADIENT[iconBg] || { swatch: "bg-slate-100 ring-slate-200", icon: "text-slate-600", bar: "bg-slate-400" };
+
+  // `highlight` on this page currently means "needs attention" (rose was
+  // used in the old style). Keep rose as the highlight tone so the
+  // meaning is unchanged for the "Needs Attention" card.
+  const ringClass = highlight
+    ? "border-rose-200"
+    : "border-slate-200/70";
+  const numberClass = highlight ? "text-rose-700" : "text-slate-900";
+
   return (
     <div
-      className={`bg-white rounded-2xl border shadow-sm p-5 flex items-center justify-between ${
-        highlight ? "border-rose-200" : "border-slate-100"
-      }`}
+      className={`relative bg-white rounded-2xl border shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.04)] p-5 overflow-hidden ${ringClass}`}
     >
-      <div>
-        <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">{label}</p>
-        <p className={`text-2xl font-bold mt-2 ${highlight ? "text-rose-700" : "text-slate-800"}`}>
-          {value}
-        </p>
-        {caption && (
-          <p className="text-[10px] text-slate-400 mt-1 leading-snug">{caption}</p>
-        )}
-      </div>
-      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${iconBg} flex items-center justify-center shadow-md`}>
-        {icon}
+      <span aria-hidden className={`absolute top-0 left-5 right-5 h-1 rounded-full ${c.bar}`} />
+      <div className="flex items-start justify-between gap-3 pt-1">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.08em]">
+            {label}
+          </p>
+          <p className={`text-3xl font-semibold tabular-nums mt-2 ${numberClass}`}>
+            {value}
+          </p>
+          {caption && (
+            <p className="text-[10px] text-slate-400 mt-1.5 leading-snug">{caption}</p>
+          )}
+        </div>
+        <div className={`w-11 h-11 rounded-xl ring-1 ring-inset flex items-center justify-center shrink-0 ${c.swatch}`}>
+          {React.isValidElement(icon)
+            ? React.cloneElement(icon, { className: `h-5 w-5 ${c.icon}` })
+            : icon}
+        </div>
       </div>
     </div>
   );
