@@ -15,8 +15,8 @@ services:
 
   backend:
     build:
-      context: ../BugChetana1/bugchetana_backend
-      dockerfile: ../BugChetana1/bugchetana_backend/Dockerfile
+      context: ./bugchetana_backend
+      dockerfile: Dockerfile
     # Backend will be available at http://localhost:8000
     ports:
       - "8000:8000"
@@ -31,8 +31,8 @@ services:
 
   frontend:
     build:
-      context: ../BugChetana1/bugchetana-frontend
-      dockerfile: ../BugChetana1/bugchetana-frontend/Dockerfile
+      context: ./bugchetana-frontend
+      dockerfile: Dockerfile
     # Frontend will be available at http://localhost:5173
     ports:
       - "5173:80"
