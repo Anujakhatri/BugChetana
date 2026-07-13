@@ -1,6 +1,6 @@
 import hashlib
 from urllib.request import Request
-from .permissions import IsAdmin, IsAdminOrReleaseManager, IsStaffOrReleaseManagerOrQA
+from .permissions import IsAdminOrReleaseManager, IsStaffOrReleaseManagerOrQA, get_role
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework import status, generics
@@ -126,7 +126,7 @@ class ProfileView(APIView):
 
 #Role update by release manager only
 class RoleUpdateView(APIView):
-    permission_classes = (IsAuthenticated,IsAdmin, IsAdminOrReleaseManager)
+    permission_classes = (IsAuthenticated, IsAdminOrReleaseManager)
 
     def patch(self, request, pk):
         try:
@@ -135,6 +135,23 @@ class RoleUpdateView(APIView):
             return Response({"message": "User does not exist"}, status=status.HTTP_404_NOT_FOUND)
         serializer = RoleUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        # Only admins may assign or remove the "Release Manager" role.
+        # Validate from the authenticated principal (request.user), not
+        # anything client-supplied, so this can't be bypassed by a forged
+        # request body.
+        new_role = serializer.role_instance
+        requester_is_rm = (
+            not request.user.is_staff
+            and get_role(request.user) == 'Release Manager'
+        )
+        if requester_is_rm:
+            target_current_is_rm = get_role(target_user) == 'Release Manager'
+            if new_role.name == 'Release Manager' or target_current_is_rm:
+                return Response(
+                    {"message": "Only admins can assign or remove the Release Manager role."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         updated_user, old_role = serializer.update(target_user, serializer.validated_data)
 
