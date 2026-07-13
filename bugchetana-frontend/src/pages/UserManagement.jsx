@@ -2,8 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getUsers, getRoles, updateUserRole } from '@/api/users';
 import PageContainer from '@/components/layout/PageContainer';
 import { Loader2, Check } from 'lucide-react';
+import {useAuth} from "@/context/AuthContext.jsx";
 
 export default function UserManagement({ embedded = false }) {
+  const { user: currentUser } = useAuth();
+
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +56,13 @@ export default function UserManagement({ embedded = false }) {
       setSavingUserId(null);
     }
   };
+  // Release Managers can only assign Developer / QA
+  const isReleaseManager = currentUser?.roleName === 'Release Manager';
+  const assignableRoles = isReleaseManager
+    ? roles.filter(r => r.name !== 'Release Manager')
+    : roles;
+  // Admin manages everything; don't render Admin users as editable rows.
+  const visibleUsers = users.filter(u => u.role !== 'Admin');
 
   if (loading) {
     return embedded ? (
@@ -82,8 +92,20 @@ export default function UserManagement({ embedded = false }) {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => {
+              {visibleUsers.map((u) => {
                 const currentRole = roles.find(r => r.name === u.role);
+                // If this user is already a Release Manager but the logged-in
+                // Release Manager can't grant that role, keep it selectable
+                // for THIS row only so the current value still displays correctly,
+                // without letting them re-assign it to someone else.
+                const optionsForRow =
+                  isReleaseManager && currentRole?.name === 'Release Manager'
+                    ? roles // show all so the existing "Release Manager" value renders
+                    : assignableRoles;
+
+                const rowDisabled =
+                  savingUserId === u.id ||
+                  (isReleaseManager && currentRole?.name === 'Release Manager');
                 return (
                   <tr key={u.id} className="border-b border-gray-100 last:border-0">
                     <td className="px-4 py-3 text-gray-900">{u.name}</td>
@@ -93,10 +115,10 @@ export default function UserManagement({ embedded = false }) {
                         <select
                           value={currentRole?.id || ''}
                           onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                          disabled={savingUserId === u.id}
+                          disabled={rowDisabled}
                           className="border border-gray-300 rounded-lg px-2 py-1 text-sm bg-white disabled:opacity-60"
                         >
-                          {roles.map((r) => (
+                          {optionsForRow.map((r) => (
                             <option key={r.id} value={r.id}>{r.name}</option>
                           ))}
                         </select>
