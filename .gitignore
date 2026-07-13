@@ -222,3 +222,4 @@ __marimo__/
 .idea
 .DS_Store
 docs
+database_backup_before_static_fix.sql
