@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    environment:
+      POSTGRES_DB: ${DB_NAME:-bugchetana}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5433:5432"
+    networks:
+      - bugchetana_net
+
+  backend:
+    build:
+      context: ./bugchetana_backend
+      dockerfile: Dockerfile
+    # Backend will be available at http://localhost:8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+    networks:
+      - bugchetana_net
+
+  frontend:
+    build:
+      context: ./bugchetana-frontend
+      dockerfile: Dockerfile
+    # Frontend will be available at http://localhost:5173
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - bugchetana_net
+
+volumes:
+  postgres_data:
+
+networks:
+  bugchetana_net:
