@@ -30,18 +30,18 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", False) == "True"
 
-ALLOWED_HOSTS: list[str] = []
+ALLOWED_HOSTS: list[str] = ["bugchetana-production.up.railway.app"]
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://bug-chetana-ai.vercel.app/"
+    "https://bug-chetana-ai.vercel.app",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://bug-chetana-ai.vercel.app/"
+    "https://bug-chetana-ai.vercel.app",
 ]
 
 CORS_ORIGIN_ALLOW_ALL = True
