@@ -2,7 +2,7 @@
 A role-based bug tracking web application with AI-assisted severity prediction.
 
 ## Live Demo
-- **Production URL**: [Placeholder for Vercel URL]
+- **Production URL**:📍 https://bug-chetana-ai.vercel.app 
 - *Note: The frontend is deployed on Vercel, and the backend is deployed on Railway.*
 
 ## Features
