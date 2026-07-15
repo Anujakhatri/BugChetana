@@ -1,70 +1,24 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell } from 'lucide-react';
-import { getNotifications, markNotificationRead, markAllNotificationsRead } from '@/api/notifications';
-import { useAuth } from '@/context/AuthContext';
-
-export default function NotificationBell() {
+import { Bell } from 'lucide-react';export default function NotificationBell({
+  notifications = [],
+  loading = false,
+  onLoadNotifications,
+  onMarkRead,
+  onMarkAllRead
+}) {
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  // Gate the bell on auth readiness: don't fire /notifications/ until
-  // AuthContext has confirmed a logged-in user. The axios interceptor
-  // attaches the token from sessionStorage, so any request fired before
-  // login completes — or after a forced logout that hasn't yet cleared
-  // the bell — will hit 401. Wait for a real user + non-loading state.
-  const { user, loading: authLoading } = useAuth();
-  const authReady = !authLoading && !!user;
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
-
-  const loadNotifications = useCallback(async () => {
-    // Belt-and-braces guard: even though authReady checks AuthContext, a
-    // forced logout can wipe sessionStorage while the bell is still
-    // mounted (auth:logout is dispatched asynchronously, so there's a
-    // small window where `user` is still set but the access token is
-    // gone). Firing /notifications/ with no token produces a 401 that
-    // then gets caught by the axios refresh interceptor — the refresh
-    // also fails (token was cleared) and the user is logged out, but
-    // the request still logs a 401 in the console on its way through.
-    // Skip the call entirely if there's no access token to send.
-    if (!sessionStorage.getItem('access')) {
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await getNotifications();
-      setNotifications(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!authReady) return;
-    loadNotifications();
-    const interval = setInterval(loadNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [loadNotifications, authReady]);
-
   const handleOpen = () => {
     setOpen((prev) => !prev);
-    if (!open && authReady) loadNotifications();
+    if (!open && onLoadNotifications) onLoadNotifications();
   };
 
   const handleClick = async (notification) => {
-    if (!notification.is_read) {
-      try {
-        await markNotificationRead(notification.id);
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n))
-        );
-      } catch (err) {
-        console.error(err);
-      }
+    if (!notification.is_read && onMarkRead) {
+      await onMarkRead(notification.id);
     }
     if (notification.related_bug_id) {
       navigate(`/bugs/${notification.related_bug_id}`);
@@ -73,11 +27,8 @@ export default function NotificationBell() {
   };
 
   const handleMarkAllRead = async () => {
-    try {
-      await markAllNotificationsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    } catch (err) {
-      console.error(err);
+    if (onMarkAllRead) {
+      await onMarkAllRead();
     }
   };
 
