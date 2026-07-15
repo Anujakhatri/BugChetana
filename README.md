@@ -26,7 +26,7 @@ A role-based bug tracking web application with AI-assisted severity prediction.
 ### Setup Steps
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Anujakhatri/BugChetana.git
    cd BugChetana
    ```
 
