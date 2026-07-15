@@ -1,19 +1,66 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Bug, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import NotificationBell from '@/components/shared/NotificationBell';
 import bugchetanaIcon from '@/assets/bugchetana-icon.svg';
 import ProfileModal from '@/components/shared/ProfileModel.jsx';
+import { getNotifications, markNotificationRead, markAllNotificationsRead } from '@/api/notifications';
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
+
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
+  const authReady = !authLoading && !!user;
+
+  const loadNotifications = useCallback(async () => {
+    if (!sessionStorage.getItem('access')) {
+      return;
+    }
+    setLoadingNotifications(true);
+    try {
+      const data = await getNotifications();
+      setNotifications(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!authReady) return;
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [loadNotifications, authReady]);
+
+  const handleMarkNotificationRead = async (id) => {
+    try {
+      await markNotificationRead(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await markAllNotificationsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleSectionClick = (sectionId) => {
     if (location.pathname === '/') {
@@ -100,7 +147,15 @@ export default function Navbar() {
               </>
             ) : (
               <div className="flex items-center gap-4">
-                {showNotifications && <NotificationBell />}
+                {showNotifications && (
+                  <NotificationBell
+                    notifications={notifications}
+                    loading={loadingNotifications}
+                    onLoadNotifications={loadNotifications}
+                    onMarkRead={handleMarkNotificationRead}
+                    onMarkAllRead={handleMarkAllNotificationsRead}
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => setIsProfileOpen(true)}
@@ -128,7 +183,15 @@ export default function Navbar() {
               </button>
             ) : (
               <>
-                {showNotifications && <NotificationBell />}
+                {showNotifications && (
+                  <NotificationBell
+                    notifications={notifications}
+                    loading={loadingNotifications}
+                    onLoadNotifications={loadNotifications}
+                    onMarkRead={handleMarkNotificationRead}
+                    onMarkAllRead={handleMarkAllNotificationsRead}
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => setIsProfileOpen(true)}

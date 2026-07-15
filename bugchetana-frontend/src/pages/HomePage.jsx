@@ -37,7 +37,7 @@ export default function HomePage() {
         </h1>
 
         <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl leading-relaxed">
-          BugChetana uses AI to predict, classify, and route incoming bugs directly to your Developers, QA engineers, and Release Managers.
+          BugChetana uses AI to predict severity, classify a bug, and route incoming bugs directly to your Developers, QA engineers, and Release Managers.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
@@ -76,7 +76,7 @@ export default function HomePage() {
             <FeatureCard
               icon={<Zap className="h-6 w-6 text-blue-500" />}
               title="AI Bug Prediction"
-              description="AI classifies incoming bugs before your team even sees them."
+              description="AI predicts the severity and urgency of incoming bugs, so your team knows what to fix first."
             />
             <FeatureCard
               icon={<Flame className="h-6 w-6 text-orange-500" />}
@@ -91,7 +91,7 @@ export default function HomePage() {
             <FeatureCard
               icon={<GithubIcon className="h-6 w-6 text-slate-700" />}
               title="GitHub OAuth"
-              description="Sign in with GitHub, link repos, auto-import issues."
+              description="Sign in with GitHub, Google to link your profile "
             />
           </div>
 
@@ -132,7 +132,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Register & Connect</h3>
               <p className="text-slate-600">
-                Sign up and seamlessly connect your GitHub repositories.
+                Sign up in a minutes to track your bugs and get real-time updates.
               </p>
             </div>
 
@@ -164,7 +164,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">AI Triage</h3>
               <p className="text-slate-600">
-                Let AI classify, predict severity, and route bugs to the right team.
+                Let AI predict severity, and route bugs to the right team.
               </p>
             </div>
           </div>
