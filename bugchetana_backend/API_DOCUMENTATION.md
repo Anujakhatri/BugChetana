@@ -19,7 +19,8 @@ Access tokens live 30 minutes; refresh tokens live 7 days and rotate on use (old
 2. [Projects App](#2-projects-app)
 3. [Bugs App](#3-bugs-app)
 4. [AI Integration App](#4-ai-integration-app)
-5. [How Authentication Flows End-to-End](#5-how-authentication-flows-end-to-end)
+5. [Notifications App](#5-notifications-app)
+6. [How Authentication Flows End-to-End](#6-how-authentication-flows-end-to-end)
 
 ---
 
@@ -469,28 +470,23 @@ Base path: `/api/projects/`
 
 ---
 
-### 2.3 `GET|POST /api/projects/<int:project_id>/members/`
+### 2.3 `GET /api/projects/<int:project_id>/members/`
 
 | | |
 |---|---|
-| **Purpose** | `GET`: list who's currently a member of a project. `POST`: add a new member. |
-| **View** | `ProjectMemberListCreateView` (`generics.ListCreateAPIView`) |
+| **Purpose** | List who's currently a member of a project. |
+| **HTTP Method** | `GET` |
+| **View** | `ProjectMemberListView` (`generics.ListAPIView`) |
 | **Serializer** | `ProjectMemberSerializer` |
-| **Model(s)** | `ProjectMember`, `Project` (looked up via `project_id`) |
-| **Permission** | `CanManageProjectMembers` — `GET` open to any project member or the project's RM; `POST` restricted to the release manager of *this* project |
+| **Model(s)** | `ProjectMember`, `Project` |
+| **Permission** | `CanManageProjectMembers` |
 
-**Request flow — GET:**
+**Request flow:**
 1. `get_queryset()` filters `ProjectMember.objects.filter(project_id=self.kwargs['project_id'])`.
-2. Returns each member's user info + their role (via `ProjectMemberSerializer`'s `source='user.role.name'`).
-
-**Request flow — POST:**
-1. Permission check confirms the requester is this project's RM.
-2. `perform_create()` injects `project_id` from the URL, so the request body only needs `user_id`.
-3. `unique_together = ('project', 'user')` on the model means adding the same user twice raises an `IntegrityError`-derived validation error, not a silent duplicate.
+2. Returns each member's user info + their role.
 
 **Database interaction:**
-- `GET`: `SELECT` filtered by `project_id`
-- `POST`: `INSERT` into `project_members`
+- `SELECT` filtered by `project_id`
 
 **Response (GET, 200 OK):**
 ```json
@@ -507,12 +503,36 @@ Base path: `/api/projects/`
 ]
 ```
 
-**Request body (POST):**
+**When this is used:** `ProjectManagement.jsx`'s expandable "members" panel per project. Real-world scenario: viewing current project team.
+
+---
+
+### 2.3.1 `POST /api/projects/<int:project_id>/members/add/`
+
+| | |
+|---|---|
+| **Purpose** | Add a new member to a project. |
+| **HTTP Method** | `POST` |
+| **View** | `AddProjectMemberView` (`APIView`) |
+| **Serializer** | `ProjectMemberSerializer` |
+| **Model(s)** | `ProjectMember`, `Project`, `User` |
+| **Permission** | `CanManageProjectMembers` |
+
+**Request flow:**
+1. Uses `get_or_create` to safely add the member without throwing 500s on duplicates.
+2. Permission/Role check ensures valid role hierarchies (QA assigns Devs, RM assigns Devs/QAs).
+3. Triggers an in-app notification if a Developer is added.
+
+**Database interaction:**
+- `SELECT` on `projects`, `users`
+- `INSERT` into `project_members`, `notifications`
+
+**Request body:**
 ```json
 { "user_id": 4 }
 ```
 
-**When this is used:** `ProjectManagement.jsx`'s expandable "members" panel per project. Real-world scenario: a new Developer joins the team and needs access to a specific project's bugs — the RM adds them here, which immediately makes `Project.objects.filter(members__user=user)` include this project for them everywhere else in the system (dashboard, bug list, etc.).
+**When this is used:** `ProjectManagement.jsx`'s "Add Member" feature. Real-world scenario: a new Developer joins the team and needs access to a specific project's bugs.
 
 ---
 
@@ -629,6 +649,50 @@ Base path assumed: `/api/` (bug routes are not project-nested at the URL level e
 - `DELETE`: `DELETE` from `bugs` — cascades to `BugComment`, `BugHistory`, `QAResult`, `ReleaseBug` rows
 
 **When this is used:** `BugDetail.jsx`'s role-aware edit form. Real-world scenario: a Developer fixes a bug and flips its status to `"resolved"` — they *cannot* jump straight to `"closed"` even if they're confident it's fixed, because that final sign-off is reserved for QA verification, enforcing a two-person check before a bug is considered truly done.
+
+---
+
+### 3.2.1 `PATCH /api/bugs/<int:pk>/assign/`
+
+| | |
+|---|---|
+| **Purpose** | Assign a specific bug to a Developer. |
+| **HTTP Method** | `PATCH` |
+| **View** | `BugAssignView` (`APIView`) |
+| **Serializer** | `BugAssignSerializer` |
+| **Model(s)** | `Bug`, `User` |
+| **Permission** | `IsAuthenticated`, `CanSubmitQAResult` |
+
+**Request flow:**
+1. Validates the assigned_to ID via serializer.
+2. Updates `bug.assigned_to` and saves `update_fields=['assigned_to']`.
+3. Triggers a notification to the assigned Developer.
+
+**Database interaction:**
+- `SELECT` on `bugs` and `users`
+- `UPDATE` on `bugs` (one field)
+- `INSERT` into `notifications`
+
+---
+
+### 3.2.2 `POST /api/bugs/<int:pk>/resubmit/`
+
+| | |
+|---|---|
+| **Purpose** | Resubmit a bug that failed QA testing so it can be re-tested. |
+| **HTTP Method** | `POST` |
+| **View** | `BugResubmitView` (`APIView`) |
+| **Serializer** | `BugResubmitSerializer` |
+| **Model(s)** | `Bug` |
+| **Permission** | `IsAuthenticated`, `HasBugAccess` |
+
+**Request flow:**
+1. Validates the bug is currently in a `'failed'` state and user is authorized.
+2. Updates `bug.status` to `'resubmitted'` and clears `qa_comment`.
+
+**Database interaction:**
+- `SELECT` on `bugs`
+- `UPDATE` on `bugs`
 
 ---
 
@@ -868,6 +932,39 @@ Base path assumed: `/api/` (bug routes are not project-nested at the URL level e
 
 Base path: `/api/`
 
+### 4.0.1 `POST /api/ai/predict-severity/`
+
+| | |
+|---|---|
+| **Purpose** | Stateless severity prediction based on title and description without creating a Bug record. |
+| **HTTP Method** | `POST` |
+| **View** | `PredictSeverityView` (`APIView`) |
+| **Permission** | `AllowAny` |
+
+**Request flow:**
+1. Receives title and description.
+2. Calls `predict_severity_with_confidence()` to get ML model prediction.
+3. Returns prediction and confidence score.
+
+---
+
+### 4.0.2 `POST /api/ai/review-guest/`
+
+| | |
+|---|---|
+| **Purpose** | Stateless roast + fix suggestions for the public guest bug-report flow. |
+| **HTTP Method** | `POST` |
+| **View** | `GuestAIReviewView` (`APIView`) |
+| **Permission** | `AllowAny` |
+| **Throttle** | `GuestAIReviewThrottle` |
+
+**Request flow:**
+1. Receives title, description, and severity.
+2. Calls LLM endpoints to generate a roast and fix suggestion based on the text.
+3. Returns both generated texts.
+
+---
+
 ### 4.1 `POST /api/bugs/<int:bug_id>/roast/`
 
 | | |
@@ -932,7 +1029,59 @@ Base path: `/api/`
 
 ---
 
-## 5. How Authentication Flows End-to-End
+## 5. Notifications App
+
+Base path: `/api/notifications/`
+
+### 5.1 `GET /api/notifications/`
+
+| | |
+|---|---|
+| **Purpose** | List notifications for the authenticated user. |
+| **HTTP Method** | `GET` |
+| **View** | `NotificationListView` (`generics.ListAPIView`) |
+| **Serializer** | `NotificationSerializer` |
+| **Model(s)** | `Notification` |
+| **Permission** | `IsAuthenticated` |
+
+**Request flow:**
+1. `get_queryset()` filters `Notification.objects.filter(recipient=request.user)`.
+
+---
+
+### 5.2 `PATCH /api/notifications/<int:pk>/read/`
+
+| | |
+|---|---|
+| **Purpose** | Mark a specific notification as read. |
+| **HTTP Method** | `PATCH` |
+| **View** | `NotificationMarkReadView` (`APIView`) |
+| **Serializer** | `NotificationSerializer` |
+| **Model(s)** | `Notification` |
+| **Permission** | `IsAuthenticated` |
+
+**Request flow:**
+1. Finds the notification by pk ensuring it belongs to the `request.user`.
+2. Updates `is_read = True` and saves.
+
+---
+
+### 5.3 `POST /api/notifications/mark-all-read/`
+
+| | |
+|---|---|
+| **Purpose** | Mark all unread notifications for the user as read. |
+| **HTTP Method** | `POST` |
+| **View** | `NotificationMarkAllReadView` (`APIView`) |
+| **Model(s)** | `Notification` |
+| **Permission** | `IsAuthenticated` |
+
+**Request flow:**
+1. Performs a bulk update `Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)`.
+
+---
+
+## 6. How Authentication Flows End-to-End
 
 Putting the pieces together, here's the full lifecycle of a request in this system:
 
