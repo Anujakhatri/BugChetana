@@ -5,6 +5,10 @@ import api from "@/api/axiosInstance";
 import { getMySubmittedBugs } from "@/api/bugs";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import { StatusBadge, timeAgo } from "@/components/shared/DashboardBadges";
+import Pagination from "@/components/shared/Pagination";
+
+const SUBMISSION_PAGE_SIZE = 5;
+const ACTIVITY_PAGE_SIZE = 7;
 
 export default function QaHistoryPage() {
   const navigate = useNavigate();
@@ -22,17 +26,31 @@ export default function QaHistoryPage() {
   const [historyBugs, setHistoryBugs] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // Client-side pagination state — slices the already-sorted (latest first)
+  // arrays in place. We never re-sort; only the slice window moves.
+  const [submissionPage, setSubmissionPage] = useState(1);
+  const [activityPage, setActivityPage] = useState(1);
+
   useEffect(() => {
     let alive = true;
     setActivityLoading(true);
-    Promise.all([
-      api.get("/dashboard/qa/"),
-      api.get("/bugs/").catch(() => ({ data: [] })),
-    ])
-      .then(([dashRes, bugsRes]) => {
+    // Cross-reference bug titles for the recent-activity feed using the
+    // same project-scoped "bugs I submitted" source already used by the
+    // Submission Log below — no unscoped /bugs/ list endpoint exists.
+    getMySubmittedBugs(projectId)
+      .then((bugsRes) => {
+        if (!alive) return;
+        setBugs(bugsRes || []);
+      })
+      .catch((err) => {
+        console.error(err);
+        if (!alive) return;
+        setBugs([]);
+      });
+    api.get("/dashboard/qa/")
+      .then((dashRes) => {
         if (!alive) return;
         setRecentActivity(dashRes.data?.recent_activity || []);
-        setBugs(bugsRes.data || []);
       })
       .catch((err) => {
         console.error(err);
@@ -45,7 +63,7 @@ export default function QaHistoryPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     setHistoryLoading(true);
@@ -58,6 +76,28 @@ export default function QaHistoryPage() {
   // Build a quick bug-by-id map for activity cross-referencing.
   const bugById = new Map();
   bugs.forEach((b) => bugById.set(b.id, b));
+
+  // Pagination slices. The source arrays are kept in their original
+  // (latest-first) order — we only choose a window into them.
+  const submissionTotalPages = Math.max(
+    1,
+    Math.ceil(historyBugs.length / SUBMISSION_PAGE_SIZE),
+  );
+  const safeSubmissionPage = Math.min(submissionPage, submissionTotalPages);
+  const submissionSlice = historyBugs.slice(
+    (safeSubmissionPage - 1) * SUBMISSION_PAGE_SIZE,
+    safeSubmissionPage * SUBMISSION_PAGE_SIZE,
+  );
+
+  const activityTotalPages = Math.max(
+    1,
+    Math.ceil(recentActivity.length / ACTIVITY_PAGE_SIZE),
+  );
+  const safeActivityPage = Math.min(activityPage, activityTotalPages);
+  const activitySlice = recentActivity.slice(
+    (safeActivityPage - 1) * ACTIVITY_PAGE_SIZE,
+    safeActivityPage * ACTIVITY_PAGE_SIZE,
+  );
 
   return (
     <div className="space-y-6">
@@ -78,7 +118,7 @@ export default function QaHistoryPage() {
           <div className="p-8 text-center text-slate-500">No bugs submitted yet.</div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {historyBugs.map((bug) => (
+            {submissionSlice.map((bug) => (
               <div key={bug.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800">{bug.title}</h3>
@@ -94,6 +134,12 @@ export default function QaHistoryPage() {
             ))}
           </div>
         )}
+        <Pagination
+          currentPage={safeSubmissionPage}
+          totalItems={historyBugs.length}
+          pageSize={SUBMISSION_PAGE_SIZE}
+          onPageChange={setSubmissionPage}
+        />
       </div>
 
       {/* Recent Activity — migrated from /qa/dashboard. */}
@@ -114,7 +160,7 @@ export default function QaHistoryPage() {
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {recentActivity.map((item) => {
+            {activitySlice.map((item) => {
               const bug = bugById.get(item.bug_id);
               const bugLabel = bug ? `#${bug.id} · ${bug.title}` : `Bug #${item.bug_id}`;
               const isQa = item.type === "qa_result";
@@ -146,6 +192,12 @@ export default function QaHistoryPage() {
             })}
           </div>
         )}
+        <Pagination
+          currentPage={safeActivityPage}
+          totalItems={recentActivity.length}
+          pageSize={ACTIVITY_PAGE_SIZE}
+          onPageChange={setActivityPage}
+        />
       </div>
     </div>
   );
