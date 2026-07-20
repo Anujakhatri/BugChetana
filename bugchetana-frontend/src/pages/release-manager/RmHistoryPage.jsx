@@ -9,6 +9,10 @@ import api from "@/api/axiosInstance";
 import { getMySubmittedBugs } from "@/api/bugs";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import { StatusBadge } from "@/components/shared/DashboardBadges";
+import Pagination from "@/components/shared/Pagination";
+
+const SUBMISSION_PAGE_SIZE = 5;
+const ACTIVITY_PAGE_SIZE = 7;
 
 export default function RmHistoryPage() {
   const { projectId } = useDashboardSummary();
@@ -26,6 +30,11 @@ export default function RmHistoryPage() {
   const [submissionBugs, setSubmissionBugs] = useState([]);
   const [submissionLoading, setSubmissionLoading] = useState(false);
 
+  // Client-side pagination state — slices the already-sorted (latest first)
+  // arrays in place. We never re-sort; only the slice window moves.
+  const [submissionPage, setSubmissionPage] = useState(1);
+  const [activityPage, setActivityPage] = useState(1);
+
   useEffect(() => {
     setHistoryLoading(true);
     api.get("/release-manager/history/")
@@ -41,6 +50,28 @@ export default function RmHistoryPage() {
       .catch(console.error)
       .finally(() => setSubmissionLoading(false));
   }, [projectId]);
+
+  // Pagination slices. The source arrays are kept in their original
+  // (latest-first) order — we only choose a window into them.
+  const submissionTotalPages = Math.max(
+    1,
+    Math.ceil(submissionBugs.length / SUBMISSION_PAGE_SIZE),
+  );
+  const safeSubmissionPage = Math.min(submissionPage, submissionTotalPages);
+  const submissionSlice = submissionBugs.slice(
+    (safeSubmissionPage - 1) * SUBMISSION_PAGE_SIZE,
+    safeSubmissionPage * SUBMISSION_PAGE_SIZE,
+  );
+
+  const activityTotalPages = Math.max(
+    1,
+    Math.ceil(historyData.activity.length / ACTIVITY_PAGE_SIZE),
+  );
+  const safeActivityPage = Math.min(activityPage, activityTotalPages);
+  const activitySlice = historyData.activity.slice(
+    (safeActivityPage - 1) * ACTIVITY_PAGE_SIZE,
+    safeActivityPage * ACTIVITY_PAGE_SIZE,
+  );
 
   return (
     <div className="space-y-6">
@@ -93,7 +124,7 @@ export default function RmHistoryPage() {
           <div className="p-8 text-center text-slate-500">No bugs submitted yet.</div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {submissionBugs.map((bug) => (
+            {submissionSlice.map((bug) => (
               <div key={bug.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800">{bug.title}</h3>
@@ -109,6 +140,12 @@ export default function RmHistoryPage() {
             ))}
           </div>
         )}
+        <Pagination
+          currentPage={safeSubmissionPage}
+          totalItems={submissionBugs.length}
+          pageSize={SUBMISSION_PAGE_SIZE}
+          onPageChange={setSubmissionPage}
+        />
       </div>
 
       {/* Recent Activity — RM's own project / release / reassignment events
@@ -124,7 +161,7 @@ export default function RmHistoryPage() {
           <p className="p-6 text-sm text-slate-400 text-center">No activity found.</p>
         ) : (
           <div className="divide-y divide-slate-100">
-            {historyData.activity.map((item, idx) => (
+            {activitySlice.map((item, idx) => (
               <div key={idx} className="px-6 py-4 flex items-center justify-between">
                 <div>
                   <span className="font-medium text-slate-800">{item.action} {item.bug_title ? `- ${item.bug_title}` : ''}</span>
@@ -135,6 +172,12 @@ export default function RmHistoryPage() {
             ))}
           </div>
         )}
+        <Pagination
+          currentPage={safeActivityPage}
+          totalItems={historyData.activity.length}
+          pageSize={ACTIVITY_PAGE_SIZE}
+          onPageChange={setActivityPage}
+        />
       </div>
     </div>
   );
