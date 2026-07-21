@@ -1,5 +1,21 @@
 import axios from "axios"
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+// Dev-only guardrail: if VITE_API_URL isn't set and we're in production,
+// requests will silently hit the static frontend origin instead of the
+// real backend (causing 401s, missing data, "AI Review" sections that
+// vanish, etc.). Surface this loudly in dev so it gets caught before
+// a deploy.
+if (import.meta.env.DEV && !import.meta.env.VITE_API_URL) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    "[BugChetana] VITE_API_URL is not defined. " +
+    "API requests will fall back to http://localhost:8000. " +
+    "Set VITE_API_URL in your .env (e.g. https://your-railway-backend.up.railway.app) " +
+    "and in your Vercel project environment variables for production."
+  );
+}
 
 const api = axios.create({
      baseURL: `${API_URL}/api` ,
